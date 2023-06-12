@@ -5,6 +5,7 @@ Currently no batching
 
 import os
 import numpy as np
+import matplotlib.pyplot as plt 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -12,6 +13,7 @@ from torch.nn.utils import weight_norm
 from torch.utils.data import Dataset, DataLoader, random_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from early_stopping import EarlyStopping
+
 
 
 ############ step4: low-freq forecast ############
@@ -324,3 +326,28 @@ def forecast_TCN(series, trail_name='TCN', seq_len=30):
     pred, model = train_and_forecast(model, model_dir, Dtr, Dte, last_seq)
     pred = scalar.inverse_transform(pred.reshape(-1,1)).reshape(-1)[0]
     return pred, model
+
+
+
+
+
+# visualization helper
+def vis_model_performance(model, Dtr, scalar):
+    real = []
+    pred = []
+    model.eval()
+    with torch.no_grad():
+        for seq, label in Dtr:
+            y_pred = model(seq)
+            real.extend(label.detach().numpy())
+            pred.extend(y_pred.detach().numpy())
+    pred = scalar.inverse_transform(np.array(pred).reshape(-1,1)).reshape(-1)
+    real = scalar.inverse_transform(np.array(real).reshape(-1,1)).reshape(-1)
+    rmse = np.sqrt(np.mean( np.square(np.array(real)-np.array(pred)) ))
+    plt.figure()
+    plt.title('RMSE = %f'%rmse)
+    plt.plot(real, label='real')
+    plt.plot(pred, label='pred')
+    plt.legend()
+    plt.show()
+    return    

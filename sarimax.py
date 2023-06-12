@@ -144,13 +144,13 @@ def forecast_arima(series):
     """
     orig = series.copy()
 
-    # test if the series is a white noise, if yes, return a random number instead of modeling it
+    # test if the series is a white noise, if yes, return the mean instead of modeling it
     # 白噪声检验：检验前10个白噪声检验的p值（第二个返回值），所有p值小于0.05，则拒绝原假设，原序列不是白噪声
     LjungBox = stattools.q_stat(stattools.acf(series)[1:11],len(series))
     print(LjungBox[1][0])
     if LjungBox[1][0] > 0.01: # ? any or all? [0] or [-1]?
         print('the series is a white noise')
-        pred = np.mean(series) + np.std(series) * np.random.rand(1)
+        pred = np.mean(series)
         return pred, None
     
     # diff until stationary to determine d
@@ -177,12 +177,10 @@ def forecast_arima(series):
         d -= 1
         series = np.concatenate(([heads[d]], series)).cumsum()
     
-    # sanity check
+    # sanity check: if the predicted results is unbounded, return the mean
     pred = series[-1]
-    if np.abs( pred - np.mean(orig) ) > 5 * np.std(orig):
-        pred = 0
-
-    print(series.shape)
+    if np.abs( pred - np.mean(orig) ) > 3 * np.std(orig):
+        pred = np.mean(orig)
 
     return pred, model
 

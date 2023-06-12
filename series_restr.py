@@ -252,12 +252,14 @@ def preparedata_win_restr(win_len:int, win_step:int, method:str):
     Cprice = np.array(df['C_Price'])
 
     # slide the window, and decompose at each step
+    timesteps = range(0, len(Cprice)-win_len-1, win_step) # sample!!!
+    win_ys = np.zeros(len(timesteps))
     win_restr = []
-    win_ys = []
 
-    for t in tqdm(range(0, len(Cprice)-win_len-1, win_step)): # sample!!!
-        win_x = Cprice[t:t+win_len]
-        win_y = Cprice[t+win_len]
+    for t in tqdm(range(len(timesteps))): # sample!!!
+        win_x = Cprice[timesteps[t] : timesteps[t]+win_len]
+        win_y = Cprice[timesteps[t]+win_len]
+        win_ys[timesteps[t]] = win_y
 
         if method == 'ceemdan':
             imfs = decomp_ceemdan(win_x)
@@ -278,12 +280,10 @@ def preparedata_win_restr(win_len:int, win_step:int, method:str):
             break
 
         win_restr.append(reconstr)
-        win_ys.append(win_y)
 
     # store
-    params = { 'win_len': win_len, 'win_step': win_step, 'method': method }
     win_restr = np.array(win_restr)
-    win_ys = np.array(win_ys)
+    params = { 'win_len': win_len, 'win_step': win_step, 'method': method }
     f = open(trail_name+".pkl", "wb")
     pickle.dump((params, win_restr, win_ys), f)
     f.close()

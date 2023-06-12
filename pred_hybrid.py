@@ -7,8 +7,9 @@ import numpy as np
 import pickle
 from statsmodels.tsa import stattools
 from tqdm import tqdm
+from termcolor import colored
 
-from method import HiddenPrints
+from utils import *
 
 
 # # step1: decompose into subsequences
@@ -34,7 +35,7 @@ def pred_hybrid(win_len, win_step, restr, hi_pred, lo_pred, vis=False):
     trail_name = 'hb_win%d_sam%d_%s_%s_%s' %(
         params['win_len'], params['win_step'], params['restr'], 
         params['hi_pred'], params['lo_pred'])
-    print(trail_name)
+    print(colored(trail_name, 'blue'))
 
 
     # load windowed and restructured data 
@@ -43,6 +44,7 @@ def pred_hybrid(win_len, win_step, restr, hi_pred, lo_pred, vis=False):
     f = open(decomp_datapath, "rb")
     _, win_restrs, win_ys = pickle.load(f)
     f.close()
+    print(win_restrs.shape)
 
 
     # slide the window, and predict at each step
@@ -51,7 +53,7 @@ def pred_hybrid(win_len, win_step, restr, hi_pred, lo_pred, vis=False):
     pred = np.zeros((win_restrs.shape[1], len(timesteps)))
     
     for t in tqdm(range(len(timesteps))):
-        print('\n step: %i' %timesteps[t], end='')
+        # print('\n step: %i' %timesteps[t], end='')
         restr = win_restrs[timesteps[t]]
         win_y = win_ys[timesteps[t]]
         real[t] = win_y
@@ -61,8 +63,8 @@ def pred_hybrid(win_len, win_step, restr, hi_pred, lo_pred, vis=False):
             sub_seq = restr[i,:]
 
             # if stationary, goes to high-freq forecast
-            if stattools.adfuller(sub_seq)[1] < 0.001:
-                print(' -> high-freq forecasting', end='')
+            if stattools.adfuller(sub_seq)[1] < 0.01:
+                # print(' -> high-freq forecasting', end='')
                 if params['hi_pred'] == 'arima':
                     try:
                         with HiddenPrints():
@@ -76,7 +78,7 @@ def pred_hybrid(win_len, win_step, restr, hi_pred, lo_pred, vis=False):
 
             # non-stationary, goes to low-freq forecast
             else:
-                print(' -> low-freq forecasting', end='')
+                # print(' -> low-freq forecasting', end='')
                 with HiddenPrints():
                     if params['lo_pred'] == 'bpnn':
                         sub_pred, _ = forecast_BPNN(sub_seq, trail_name)
@@ -93,7 +95,7 @@ def pred_hybrid(win_len, win_step, restr, hi_pred, lo_pred, vis=False):
             # record
             pred[i,t] = sub_pred
 
-        print(' -> predicted %.3f, observed %.3f' %(np.sum(pred[:,t]), win_y))
+        # print(' -> predicted %.3f, observed %.3f' %(np.sum(pred[:,t]), win_y))
         
 
     # store
@@ -106,14 +108,17 @@ def pred_hybrid(win_len, win_step, restr, hi_pred, lo_pred, vis=False):
     # params, pred, real = pickle.load(f)
     # f.close()
 
+    pred = np.sum(pred, axis=0)
+    rmse = cal_rmse(real, pred)
+    mape = cal_mape(real, pred)
+    print('%s, RMSE=%.2f, MAPE=%.2f%%' %(trail_name, rmse, mape))
+
+
     # visualize
     if vis:
-        out = np.sum(pred, axis=0)
-        rmse = np.sqrt(np.mean( np.square(real-out) ))
-        mape = np.mean(np.abs(real-out)/real)*100
         plt.figure()
-        plt.title('%s, RMSE=%.2f, MAPE=%.2f%%' %(trail_name,rmse,mape))
-        plt.plot(out, label='pred')
+        plt.title('%s, RMSE=%.2f, MAPE=%.2f%%' %(trail_name, rmse, mape))
+        plt.plot(pred, label='pred')
         plt.plot(real, label='real')
         plt.legend()
         plt.show()
@@ -131,5 +136,5 @@ if __name__ == '__main__':
     #     'hi_pred': hi_pred, # {'arima'}
     #     'lo_pred': lo_pred, # {'bpnn', 'lstm', 'gru', 'tcn'}
     # }
-
+    
     pred_hybrid(win_len=200, win_step=1, restr='ssa', hi_pred='arima', lo_pred='tcn', vis=False)

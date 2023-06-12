@@ -5,22 +5,22 @@ import numpy as np
 
 
 # root mean square error
-def rmse(y_true, y_pred):
+def cal_rmse(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
     return np.sqrt(np.mean(np.square(y_true-y_pred)))
 
 # mean square error
-def mse(y_true, y_pred):
+def cal_mse(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
     return np.mean(np.square(y_true-y_pred))
 
 # mean absolute error
-def mae(y_true, y_pred):
+def cal_mae(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
     return np.mean(np.abs((y_true-y_pred)))
 
 # mean absolute percent error
-def mape(y_true, y_pred):
+def cal_mape(y_true, y_pred):
     y_true, y_pred = np.array(y_true), np.array(y_pred)
     return np.mean(np.abs((y_true-y_pred)/y_true))*100
 

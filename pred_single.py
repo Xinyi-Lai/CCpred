@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from termcolor import colored
 
-from method import HiddenPrints
+from utils import *
 
 # models
 from sarimax import forecast_arima
@@ -68,12 +68,14 @@ def pred_single(win_len, win_step, method, vis=False):
     # params, pred, real = pickle.load(f)
     # f.close()
 
+    rmse = cal_rmse(real, pred)
+    mape = cal_mape(real, pred)
+    print('%s, RMSE=%.2f, MAPE=%.2f%%' %(trail_name, rmse, mape))
+
     # visualize
     if vis:
-        rmse = np.sqrt(np.mean( np.square(real-pred) ))
-        mape = np.mean(np.abs(real-pred)/real)*100
         plt.figure()
-        plt.title('%s, RMSE=%.2f, MAPE=%.2f%%' %(trail_name,rmse,mape))
+        plt.title('%s, RMSE=%.2f, MAPE=%.2f%%' %(trail_name, rmse, mape))
         plt.plot(pred, label='pred')
         plt.plot(real, label='real')
         plt.legend()
@@ -83,6 +85,8 @@ def pred_single(win_len, win_step, method, vis=False):
 
 if __name__ == '__main__':
     
-    pred_methods = ['tcn', 'arima', 'gru', 'lstm']
-    for i in pred_methods:
-        pred_single(win_len=200, win_step=1, method=i, vis=False)
+    # pred_methods = ['tcn', 'arima', 'gru', 'lstm', 'bpnn']
+    # for i in pred_methods:
+    #     pred_single(win_len=200, win_step=1, method=i, vis=False)
+    
+    pred_single(win_len=200, win_step=1, method='tcn', vis=False)
