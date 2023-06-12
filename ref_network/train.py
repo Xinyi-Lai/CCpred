@@ -9,7 +9,7 @@ from torch.optim.lr_scheduler import StepLR
 
 from early_stopping import EarlyStopping
 from model import *
-from method import *
+from utils import *
 from PrepareData import *
 
 # device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # I only have cpu

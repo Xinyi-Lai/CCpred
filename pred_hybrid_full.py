@@ -5,7 +5,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from method import HiddenPrints
+from utils import HiddenPrints
 
 
 # step1: decompose into subsequences

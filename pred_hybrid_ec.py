@@ -7,7 +7,7 @@ import numpy as np
 import pickle
 from tqdm import tqdm
 
-from method import HiddenPrints
+from utils import HiddenPrints
 
 
 # # step1: decompose into subsequences
