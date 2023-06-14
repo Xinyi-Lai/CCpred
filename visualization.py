@@ -30,15 +30,12 @@ def plot_result(trail_name):
 def inspect_results():
 
     result_list = [
-        'hb_win200_sam1_ceemdan_arima_gru',
         'hb_win200_sam1_ceemdan_arima_tcn',
-        'hb_win200_sam1_ssa_arima_gru',
+        'hb_win200_sam1_ceemdan_arima_gru',
         'hb_win200_sam1_ssa_arima_tcn',
+        'hb_win200_sam1_ssa_arima_gru',
         'sg_win200_sam1_tcn',
         'sg_win200_sam1_gru',
-        'sg_win200_sam1_arima',
-        'sg_win200_sam1_bpnn',
-        'sg_win200_sam1_lstm',
     ]
 
     # load results from file and store in a dict
@@ -58,7 +55,8 @@ def inspect_results():
 
     # initialize variables
     plot_start = 0
-    plot_end = len(real)-1
+    plot_end = plot_start+200
+    # plot_end = len(real)-1
 
 
     # The plotting function to be called whenever updated
@@ -94,7 +92,7 @@ def inspect_results():
         ax2 = axes[1]
         ax2.cla()
         x = range(len(result_list))
-        ax2.bar(x, rmse_arr)
+        ax2.bar(x, rmse_arr, 0.35)
         ax2.set_xticks(x)
         ax2.set_xticklabels(title_arr, rotation=50)
         ax2.set_title('rmse')
@@ -102,7 +100,7 @@ def inspect_results():
         ax3 = axes[2]
         ax3.cla()
         x = range(len(result_list))
-        ax3.bar(x, mape_arr)
+        ax3.bar(x, mape_arr, 0.35)
         ax3.set_xticks(x)
         ax3.set_xticklabels(title_arr, rotation=50)
         ax3.set_title('mape')
@@ -110,6 +108,7 @@ def inspect_results():
 
         fig.canvas.draw_idle()
         return
+
 
     # Create figure
     fig, axes = plt.subplots(1,3)  
@@ -125,8 +124,9 @@ def inspect_results():
     sPlotEnd = Slider(axPlotEnd, 'axPlotEnd ', 0, len(real)-1, valinit=len(real)-1, valstep=1)  # generate slider
 
     def PlotStartFunc(val):
-        nonlocal plot_start
+        nonlocal plot_start,plot_end
         plot_start = sPlotStart.val
+        plot_end = plot_start + 200
         _plot(axes)
         return
     def PlotEndFunc(val):
@@ -147,4 +147,4 @@ if __name__ == "__main__":
     
     # inspect_results()
 
-    plot_result(trail_name='sg_win200_sam20_tcn')
+    plot_result(trail_name='hb_win200_sam1_emd_arima_tcn')

@@ -69,6 +69,19 @@ class SSA(object):
         
         # Calculate the w-correlation matrix.
         self.calc_wcorr()
+
+
+    # def denoising(self, th=0.95):
+    #     tot = np.sum(self.Sigma)
+    #     acc = 0
+    #     for i in range(len(self.Sigma)):
+    #         acc += self.Sigma[i]
+    #         if acc > 0.95 * tot:
+    #             break
+    #     self.TS_comps_orig = self.TS_comps.copy()
+    #     for j in range(i, len(self.Sigma)):
+    #         self.TS_comps[:,j] = 0
+
             
     def components_to_df(self, n=0):
         """

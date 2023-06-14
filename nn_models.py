@@ -18,8 +18,10 @@ from early_stopping import EarlyStopping
 
 ############ step4: low-freq forecast ############
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# future: warp into DataLoader
+
+# future: warp into DataLoader TODO:
 class MyDataset(Dataset):
     def __init__(self, data):
         self.data = data
@@ -74,7 +76,7 @@ def train_and_forecast(model, model_dir, Dtr, Dte, last_seq):
             break
     
     # forecasting        
-    return model(last_seq).detach().numpy()[0], model
+    return model(last_seq).cpu().detach().numpy()[0], model
 
 
 
@@ -93,33 +95,34 @@ class BPNN(torch.nn.Module):
 
 ### prepare dataset
 def prepare_data_BPNN(series, seq_len, random=True):
+    
     # normalize as a column
     scalar = MinMaxScaler()
     scalar.fit(series.reshape(-1,1))
     series = scalar.transform(series.reshape(-1,1)).reshape(-1)
+    
     # make dataset
     Dtr = []
     for i in range(len(series)-seq_len):
-        x = torch.FloatTensor(series[i:i+seq_len])
-        y = torch.FloatTensor([series[i+seq_len]])
+        x = torch.FloatTensor(series[i:i+seq_len]).to(device)
+        y = torch.FloatTensor([series[i+seq_len]]).to(device)
         Dtr.append((x,y))
-    last_seq = torch.FloatTensor(series[-seq_len:])
+    last_seq = torch.FloatTensor(series[-seq_len:]).to(device)
+    
     # no shuffling (sequences are independent, it's ok to shuffle)
-    # Dte = MyDataset(Dtr[int(len(Dtr)*0.8):])
-    # Dtr = MyDataset(Dtr[:int(len(Dtr)*0.8)])
+    # Dte, Dtr = MyDataset(Dtr[int(len(Dtr)*0.8):]), MyDataset(Dtr[:int(len(Dtr)*0.8)])
     Dtr = MyDataset(Dtr)
-    if random: # shuffle
-        size_Dtr = int(len(Dtr)*0.8)
-        size_Dte = len(Dtr) - size_Dtr
-        Dtr, Dte = random_split(Dtr, [size_Dtr, size_Dte])
-    else: # no shuffle, for testing
-        Dte = None
+    # shuffle for training
+    if random: Dtr, Dte = random_split(Dtr, [int(len(Dtr)*0.8), int(len(Dtr)*0.2)])
+    # no shuffle for testing and visualization
+    else: Dte = None
+
     return Dtr, Dte, last_seq, scalar
     
 ### model training and forecast
 def forecast_BPNN(series, trail_name='BPNN', seq_len=30):
     Dtr, Dte, last_seq, scalar = prepare_data_BPNN(series, seq_len, True)
-    model = BPNN(n_features=seq_len)
+    model = BPNN(n_features=seq_len).to(device)
     model_dir = './saved_model/%s'%trail_name # for early stopping and warm start
     pred, model = train_and_forecast(model, model_dir, Dtr, Dte, last_seq)
     pred = scalar.inverse_transform(pred.reshape(-1,1)).reshape(-1)[0]
@@ -140,6 +143,7 @@ class LSTM(torch.nn.Module):
         x = x[-1, :]        # x: [1, hidden_size] # seq_len != 1, take the last output from lstm
         x = self.fc(x)      # x: [1, 1]
         return x
+
 class GRU(torch.nn.Module):
     def __init__(self, input_size=1, hidden_size=10, output_size=1):
         super(GRU, self).__init__()
@@ -153,40 +157,42 @@ class GRU(torch.nn.Module):
 
 ### prepare dataset (LSTM and GRU share the same process)
 def prepare_data_LSTM_GRU(series, seq_len, random=True):
+    
     # normalize as a column
     scalar = MinMaxScaler()
     scalar.fit(series.reshape(-1,1))
     series = scalar.transform(series.reshape(-1,1)).reshape(-1)
+    
     # make dataset
     Dtr = []
     for i in range(len(series)-seq_len):
-        x = torch.FloatTensor(series[i:i+seq_len, np.newaxis]) # [seq_len, input_channel]
-        y = torch.FloatTensor([series[i+seq_len]])
+        x = torch.FloatTensor(series[i:i+seq_len, np.newaxis]).to(device) # [seq_len, input_channel]
+        y = torch.FloatTensor([series[i+seq_len]]).to(device)
         Dtr.append((x,y))
-    last_seq = torch.FloatTensor(series[-seq_len:, np.newaxis]) # [seq_len, input_channel]
+    last_seq = torch.FloatTensor(series[-seq_len:, np.newaxis]).to(device) # [seq_len, input_channel]
+    
     # no shuffling (sequences are independent, it's ok to shuffle)
-    # Dte = MyDataset(Dtr[int(len(Dtr)*0.8):])
-    # Dtr = MyDataset(Dtr[:int(len(Dtr)*0.8)])
+    # Dte, Dtr = MyDataset(Dtr[int(len(Dtr)*0.8):]), MyDataset(Dtr[:int(len(Dtr)*0.8)])
     Dtr = MyDataset(Dtr)
-    if random: # shuffle
-        size_Dtr = int(len(Dtr)*0.8)
-        size_Dte = len(Dtr) - size_Dtr
-        Dtr, Dte = random_split(Dtr, [size_Dtr, size_Dte])
-    else: # no shuffle, for testing
-        Dte = None
+    # shuffle for training
+    if random: Dtr, Dte = random_split(Dtr, [int(len(Dtr)*0.8), int(len(Dtr)*0.2)])
+    # no shuffle for testing and visualization
+    else: Dte = None
+
     return Dtr, Dte, last_seq, scalar
 
 ### model training and forecast
 def forecast_LSTM(series, trail_name='LSTM', seq_len=30):
     Dtr, Dte, last_seq, scalar = prepare_data_LSTM_GRU(series, seq_len, True)
-    model = LSTM()
+    model = LSTM().to(device)
     model_dir = './saved_model/%s'%trail_name # for early stopping and warm start
     pred, model = train_and_forecast(model, model_dir, Dtr, Dte, last_seq)
     pred = scalar.inverse_transform(pred.reshape(-1,1)).reshape(-1)[0]
     return pred, model
+    
 def forecast_GRU(series, trail_name='GRU', seq_len=30):
     Dtr, Dte, last_seq, scalar = prepare_data_LSTM_GRU(series, seq_len, True)
-    model = GRU()
+    model = GRU().to(device)
     model_dir = './saved_model/%s'%trail_name # for early stopping and warm start
     pred, model = train_and_forecast(model, model_dir, Dtr, Dte, last_seq)
     pred = scalar.inverse_transform(pred.reshape(-1,1)).reshape(-1)[0]
@@ -295,33 +301,34 @@ class TemporalConvNet(nn.Module):
 
 
 def prepare_data_TCN(series, seq_len, random=True):
+    
     # normalize as a column
     scalar = MinMaxScaler()
     scalar.fit(series.reshape(-1,1))
     series = scalar.transform(series.reshape(-1,1)).reshape(-1)
+    
     # make dataset
     Dtr = []
     for i in range(len(series)-seq_len):
-        x = torch.FloatTensor(np.array(series[i:i+seq_len]).reshape(1,1,seq_len)) # [batch, input_channel, seq_len]
-        y = torch.FloatTensor(np.array(series[i+seq_len]).reshape(1,1))
+        x = torch.FloatTensor(np.array(series[i:i+seq_len]).reshape(1,1,seq_len)).to(device) # [batch, input_channel, seq_len]
+        y = torch.FloatTensor(np.array(series[i+seq_len]).reshape(1,1)).to(device)
         Dtr.append((x,y))
-    last_seq = torch.FloatTensor(np.array(series[-seq_len:]).reshape(1,1,seq_len)) # only one feature, so add one dimension
+    last_seq = torch.FloatTensor(np.array(series[-seq_len:]).reshape(1,1,seq_len)).to(device) # only one feature, so add one dimension
+    
     # no shuffling (sequences are independent, it's ok to shuffle)
-    # Dte = MyDataset(Dtr[int(len(Dtr)*0.8):])
-    # Dtr = MyDataset(Dtr[:int(len(Dtr)*0.8)])
+    # Dte, Dtr = MyDataset(Dtr[int(len(Dtr)*0.8):]), MyDataset(Dtr[:int(len(Dtr)*0.8)])
     Dtr = MyDataset(Dtr)
-    if random: # shuffle
-        size_Dtr = int(len(Dtr)*0.8)
-        size_Dte = len(Dtr) - size_Dtr
-        Dtr, Dte = random_split(Dtr, [size_Dtr, size_Dte])
-    else: # no shuffle, for testing
-        Dte = None
+    # shuffle for training
+    if random: Dtr, Dte = random_split(Dtr, [int(len(Dtr)*0.8), int(len(Dtr)*0.2)])
+    # no shuffle for testing and visualization
+    else: Dte = None
+
     return Dtr, Dte, last_seq, scalar
 
 
 def forecast_TCN(series, trail_name='TCN', seq_len=30):
     Dtr, Dte, last_seq, scalar = prepare_data_TCN(series, seq_len, True)
-    model = TemporalConvNet(num_inputs=1, num_channels=[10,10])
+    model = TemporalConvNet(num_inputs=1, num_channels=[10,10]).to(device)
     model_dir = './saved_model/%s'%trail_name # for early stopping and warm start
     pred, model = train_and_forecast(model, model_dir, Dtr, Dte, last_seq)
     pred = scalar.inverse_transform(pred.reshape(-1,1)).reshape(-1)[0]
@@ -339,8 +346,8 @@ def vis_model_performance(model, Dtr, scalar):
     with torch.no_grad():
         for seq, label in Dtr:
             y_pred = model(seq)
-            real.extend(label.detach().numpy())
-            pred.extend(y_pred.detach().numpy())
+            real.extend(label.cpu().detach().numpy())
+            pred.extend(y_pred.cpu().detach().numpy())
     pred = scalar.inverse_transform(np.array(pred).reshape(-1,1)).reshape(-1)
     real = scalar.inverse_transform(np.array(real).reshape(-1,1)).reshape(-1)
     rmse = np.sqrt(np.mean( np.square(np.array(real)-np.array(pred)) ))

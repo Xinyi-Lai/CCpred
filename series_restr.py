@@ -27,6 +27,21 @@ def decomp_ceemdan(series):
     imfs, res = ceemdan.get_imfs_and_residue()
     return imfs
 
+def decomp_ceemdan_ex(series,ex=5):
+    # extend with symmetry to mitigate the windowing effect
+    endpt = series[-1]
+    tail = series[-ex-1:-1]
+    tail_symm = 2*endpt - tail[::-1]
+    startpt = series[0]
+    head = series[1:ex+1]
+    head_symm = 2*startpt - head[::-1]
+    series = np.concatenate((head_symm, series, tail_symm))
+    from PyEMD import CEEMDAN
+    ceemdan = CEEMDAN()
+    ceemdan.ceemdan(series)
+    imfs, res = ceemdan.get_imfs_and_residue()
+    return imfs
+
 # EEMD (Ensemble Empirical Mode Decomposition)
 def decomp_eemd(series):
     from PyEMD import EEMD
@@ -139,7 +154,7 @@ def integr_fine_to_coarse(imfs):
 
 ############ Singular Spectrum Analysis ############
 
-def restr_ssa(series, n_decomp=10, n_integr=3, vis=False):
+def restr_ssa(series, n_decomp=10, n_integr=5, vis=False):
     """ restructure the series based on sigular spectrum analysis, first decompose and then group based on weighted correlation
         Args:
             series (np.array): time series to be restructure
@@ -149,23 +164,75 @@ def restr_ssa(series, n_decomp=10, n_integr=3, vis=False):
         Returns:
             reconstr (np.array): the reconstructed subsequences, higher fuzzen (hi-freq) comes first, shape of (n_integr, win_len)
     """
+
     # decompose with SSA
     from ssa import SSA
     ssa = SSA(series, n_decomp)
 
     # group with AgglomerativeClustering based on wcorr
-    reconstr = np.zeros((n_integr, len(series)))
     from sklearn.cluster import AgglomerativeClustering
     distance_matrix = 1 / ssa.Wcorr
     cls = AgglomerativeClustering(n_clusters=n_integr, linkage='average', affinity='precomputed')
     cls = cls.fit(distance_matrix)
+    reconstr = np.zeros((n_integr, len(series)))
+    new_sigma = np.zeros(n_integr)
     for i in range(n_integr):
         reconstr[i,:] = ssa.reconstruct(np.where(cls.labels_==i)[0])
+        new_sigma[i] = np.sum(ssa.Sigma[np.where(cls.labels_==i)[0]])
 
-    # sort by fuzzy entropy
-    fuzzyEns = np.array([ FuzzyEn2(reconstr[i]) for i in range(reconstr.shape[0]) ])
-    sortIdx = fuzzyEns.argsort()[::-1] # higher fuzzen (hi-freq) comes first
+    # sort by new sigma
+    sortIdx = new_sigma.argsort()[::-1] # higher sigma (signal instead of noise) comes first
     reconstr = reconstr[sortIdx]
+
+    if vis:
+        vis_restr(decomposed=np.array(ssa.components_to_df()).T, grouped=reconstr, orig=series)
+
+    return reconstr
+
+
+
+def restr_ssa_ex(series, ex=5, n_decomp=10, n_integr=5, vis=False):
+    """ restructure the series based on sigular spectrum analysis, first decompose and then group based on weighted correlation
+        Args:
+            series (np.array): time series to be restructure
+            ex
+            n_decomp (int, optional): number of subsequences to be decomposed at first, (window length in SSA), default to be 10
+            n_integr (int, optional): number of clusters, default to be 3 (hi-freq, mi-freq, lo-freq)
+            vis (bool, optional): whether to show vis results, default to be False
+        Returns:
+            reconstr (np.array): the reconstructed subsequences, higher fuzzen (hi-freq) comes first, shape of (n_integr, win_len)
+    """
+    # extend series to mitigate the windowing effect
+    # extend with symmetry
+    endpt = series[-1]
+    tail = series[-ex-1:-1]
+    tail_symm = 2*endpt - tail[::-1]
+    startpt = series[0]
+    head = series[1:ex+1]
+    head_symm = 2*startpt - head[::-1]
+    series = np.concatenate((head_symm, series, tail_symm))
+
+    # decompose with SSA
+    from ssa import SSA
+    ssa = SSA(series, n_decomp)
+
+    # group with AgglomerativeClustering based on wcorr
+    from sklearn.cluster import AgglomerativeClustering
+    distance_matrix = 1 / ssa.Wcorr
+    cls = AgglomerativeClustering(n_clusters=n_integr, linkage='average', affinity='precomputed')
+    cls = cls.fit(distance_matrix)
+    reconstr = np.zeros((n_integr, len(series)))
+    new_sigma = np.zeros(n_integr)
+    for i in range(n_integr):
+        reconstr[i,:] = ssa.reconstruct(np.where(cls.labels_==i)[0])
+        new_sigma[i] = np.sum(ssa.Sigma[np.where(cls.labels_==i)[0]])
+
+    # sort by new sigma
+    sortIdx = new_sigma.argsort()[::-1] # higher sigma (signal instead of noise) comes first
+    reconstr = reconstr[sortIdx]
+
+    # truncate # FIXME:
+    reconstr = reconstr[:,ex:-ex]
 
     if vis:
         vis_restr(decomposed=np.array(ssa.components_to_df()).T, grouped=reconstr, orig=series)
@@ -264,6 +331,9 @@ def preparedata_win_restr(win_len:int, win_step:int, method:str):
         if method == 'ceemdan':
             imfs = decomp_ceemdan(win_x)
             reconstr = integr_fuzzen_pwlf(imfs, n_integr=2)
+        elif method == 'ceemdan_ex':
+            imfs = decomp_ceemdan_ex(win_x)
+            reconstr = integr_fuzzen_pwlf(imfs, n_integr=2)
         elif method == 'eemd':
             imfs = decomp_eemd(win_x)
             reconstr = integr_fuzzen_pwlf(imfs, n_integr=2)
@@ -275,9 +345,11 @@ def preparedata_win_restr(win_len:int, win_step:int, method:str):
         #     reconstr = integr_fuzzen_pwlf(imfs, n_integr=2)
         elif method == 'ssa':
             reconstr = restr_ssa(win_x)
+        elif method == 'ssa_ex':
+            reconstr = restr_ssa_ex(win_x)
         else:
             print('unrecognized method: ' + method)
-            break
+            return
 
         win_restr.append(reconstr)
 
@@ -301,8 +373,9 @@ if __name__ == '__main__':
 
     # demo_series_restr(win_len=200, t=800)
 
-    methods = ['ssa', 'ceemdan', 'eemd', 'emd']
-    for method in methods:
-        preparedata_win_restr(win_len=200, win_step=1, method=method)
+    # methods = ['ssa_ex', 'ssa', 'ceemdan', 'eemd', 'emd']
+    # for method in methods:
+    #     preparedata_win_restr(win_len=200, win_step=1, method=method)
 
+    preparedata_win_restr(win_len=200, win_step=1, method='ceemdan_ex')
 

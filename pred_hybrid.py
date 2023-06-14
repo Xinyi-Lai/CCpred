@@ -62,8 +62,12 @@ def pred_hybrid(win_len, win_step, restr, hi_pred, lo_pred, vis=False):
         for i in range(restr.shape[0]):
             sub_seq = restr[i,:]
 
+            # if white noise, return the mean
+            if stattools.q_stat(stattools.acf(sub_seq)[1:11],len(sub_seq))[1][0] > 0.01:
+                sub_pred = np.mean(sub_seq)
+
             # if stationary, goes to high-freq forecast
-            if stattools.adfuller(sub_seq)[1] < 0.01:
+            elif stattools.adfuller(sub_seq)[1] < 0.01:
                 # print(' -> high-freq forecasting', end='')
                 if params['hi_pred'] == 'arima':
                     try:
@@ -137,4 +141,4 @@ if __name__ == '__main__':
     #     'lo_pred': lo_pred, # {'bpnn', 'lstm', 'gru', 'tcn'}
     # }
     
-    pred_hybrid(win_len=200, win_step=1, restr='ssa', hi_pred='arima', lo_pred='tcn', vis=False)
+    pred_hybrid(win_len=200, win_step=100, restr='ssa_ex', hi_pred='arima', lo_pred='gru', vis=False)
