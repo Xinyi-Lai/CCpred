@@ -1,6 +1,6 @@
 '''
-Neural network models for low-freq sequence forecasting
-Currently no batching
+Neural network models for forecasting
+Currently no batching TODO:
 '''
 
 import os
@@ -14,9 +14,6 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from early_stopping import EarlyStopping
 
-
-
-############ step4: low-freq forecast ############
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -32,7 +29,7 @@ class MyDataset(Dataset):
 
 
 # function of model training and forecast
-# applicable to BPNN, LSTM and GRU, possible to more. TODO: check compatibility
+# applicable to BPNN, LSTM, GRU and TCN, possible to more. TODO: check compatibility
 def train_and_forecast(model, model_dir, Dtr, Dte, last_seq):
     # warm start if applicable
     model_path = os.path.join(model_dir, 'best_model.pth')
@@ -62,11 +59,12 @@ def train_and_forecast(model, model_dir, Dtr, Dte, last_seq):
         val_loss = []
         model.eval() # testing mode
         with torch.no_grad(): # no backward propagation, no computational graph
-            for (seq, label) in Dte:
+            for seq, label in Dte:
                 y_pred = model(seq)
                 loss = loss_func(y_pred, label)
                 val_loss.append(loss.item())
         val_loss = np.mean(val_loss)
+        
         print('epoch {:03d} train_loss {:.8f} val_loss {:.8f}'.format(e+1, train_loss, val_loss))
 
         # if there is no improvement beyond some patience, 'early_stop' is set to True
@@ -335,6 +333,44 @@ def forecast_TCN(series, trail_name='TCN', seq_len=30):
     return pred, model
 
 
+
+def prepare_data_TCN_decomp(series, seq_len, random=True):
+
+    series = np.array(series).T # (win_len, n_comp)
+    win_len, n_comp = series.shape
+
+    dataY = np.array([ np.sum(series[i+seq_len, :]) for i in range(win_len-seq_len) ]).reshape(win_len-seq_len,1) # a column vector
+
+    # normalize as columns
+    scalarX = MinMaxScaler()
+    series = scalarX.fit(series).transform(series)
+    scalarY = MinMaxScaler()
+    dataY = scalarY.fit(dataY).transform(dataY)
+
+    # make dataset
+    Dtr = []
+    for i in range(win_len-seq_len):
+        x = torch.FloatTensor( series[i:i+seq_len, :].T.reshape(1,n_comp,seq_len) ).to(device) # [batch, input_channel, seq_len]
+        y = torch.FloatTensor(dataY[i]).reshape(1,1).to(device) # [1,1], in loss: Using a target size (torch.Size([1])) that is different to the input size (torch.Size([1, 1])). This will likely lead to incorrect results due to broadcasting.
+        Dtr.append((x,y))
+    last_seq = torch.FloatTensor( series[-seq_len:, :].T.reshape(1,n_comp,seq_len) ).to(device) # [batch, input_channel, seq_len]
+    
+    Dtr = MyDataset(Dtr) 
+    # shuffle for training, (sequences are independent, it's ok to shuffle)
+    if random: Dtr, Dte = random_split(Dtr, [int(len(Dtr)*0.8), int(len(Dtr)*0.2)])
+    # no shuffle for testing and visualization
+    else: Dte = None
+
+    return Dtr, Dte, last_seq, scalarY
+
+
+def forecast_TCN_decomp(series, trail_name='TCN', seq_len=30):
+    Dtr, Dte, last_seq, scalar = prepare_data_TCN_decomp(series, seq_len, random=True)
+    model = TemporalConvNet(num_inputs=series.shape[0], num_channels=[10,10]).to(device)
+    model_dir = './saved_model/%s'%trail_name # for early stopping and warm start
+    pred, model = train_and_forecast(model, model_dir, Dtr, Dte, last_seq)
+    pred = scalar.inverse_transform(pred.reshape(-1,1)).reshape(-1)[0]
+    return pred, model
 
 
 

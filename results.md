@@ -1,5 +1,12 @@
 window_len = 200
 
+## Lag-1
+
+|step |Method | RMSE | MAPE |
+| --- | ----- | ---- | ---- |
+| 1   | Lag-1 | 1.23 | 2.35 |
+
+
 ## Single
 
 |step |Method | RMSE | MAPE |
@@ -56,10 +63,14 @@ window_len = 200
 
 last 1000 samples
 
-|step |Decomp   |Pred   | RMSE | MAPE |
+|step | Decomp  |Pred   | RMSE | MAPE |
 | --- | -----   | ----- | ---- | ---- |
 | 1   | ExSSA   | TCN   | 2.14 | 2.95 |
 | 1   | SSA     | TCN   | 2.36 | 3.35 |
-| 1   |ExCEEMDAN| TCN   | ???? | ???? |
+| 1   |ExCEEMDAN| TCN   | 3.41 | 4.53 |
 | 1   | CEEMDAN | TCN   | 2.19 | 2.91 |
 | 1   |    \    | TCN   | 1.75 | 2.44 |
+| 100 | ExSSA-en| TCN   | 1.41 | 3.19 |
+| 100 | SSA-en  | TCN   | 2.46 | 3.14 |
+| 50  | ExSSA-en| TCN   | 1.50 | 2.99 |
+| 50  | SSA-en  | TCN   | 3.07 | 3.22 |
