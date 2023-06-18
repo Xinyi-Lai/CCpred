@@ -35,3 +35,30 @@ export: `conda env export > environment.yml`
 import: `conda env create -f environment.yml`
 
 may change the env name in the first line
+
+
+
+## some interesting features:
+
+stylized comments:
+
+<!-- TODO: a whole-line todo -->
+
+<!-- TODO highlighted keyword todo -->
+
+<!-- FIXME: a whole-line fixme -->
+
+<!-- FIXME highlighted keyword fixme -->
+
+<!-- FUTURE: a whole-line future -->
+
+<!-- NOTE: a highlighted note -->
+
+
+<!-- a normal comments -->
+
+<!-- !! an important comment -->
+
+<!-- ?? a question -->
+
+<!-- # # an invisible comments -->

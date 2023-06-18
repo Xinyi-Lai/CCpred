@@ -32,13 +32,13 @@ def pred_decomp(win_len, win_step, restr, method, vis=False):
     _, win_restrs, win_ys = pickle.load(f)
     f.close()
     
-    # only using the last 1000 samples for simulation FIXME:
+    # only using the last 1000 samples for simulation FIXME
     # win_restrs = win_restrs[-1000:]
     # win_ys = win_ys[-1000:]
     print(win_restrs.shape) # (1000,5,200) (1000,n_comp,win_len)
 
     # slide the window, and predict at each step
-    timesteps = range(0, win_restrs.shape[0], win_step) # sample!!!
+    timesteps = range(0, win_restrs.shape[0], win_step) # sample!
     real = np.zeros(len(timesteps))
     pred = np.zeros(len(timesteps))
     

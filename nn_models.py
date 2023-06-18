@@ -1,6 +1,6 @@
 '''
 Neural network models for forecasting
-Currently no batching TODO:
+NOTE: refactored into models.py
 '''
 
 import os
@@ -18,7 +18,7 @@ from early_stopping import EarlyStopping
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
-# future: warp into DataLoader TODO:
+# future: warp into DataLoader: done
 class MyDataset(Dataset):
     def __init__(self, data):
         self.data = data
@@ -29,7 +29,7 @@ class MyDataset(Dataset):
 
 
 # function of model training and forecast
-# applicable to BPNN, LSTM, GRU and TCN, possible to more. TODO: check compatibility
+# applicable to BPNN, LSTM, GRU and TCN, possible to more. 
 def train_and_forecast(model, model_dir, Dtr, Dte, last_seq):
     # warm start if applicable
     model_path = os.path.join(model_dir, 'best_model.pth')
@@ -394,3 +394,9 @@ def vis_model_performance(model, Dtr, scalar):
     plt.legend()
     plt.show()
     return    
+
+
+
+if __name__ == '__main__':
+
+    pass

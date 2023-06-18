@@ -45,16 +45,25 @@ class NN_model(object):
 
 
     def prepare_data(self):
-        # implement in subclass
+        """ transform data into batched tensors, reorganize to adapt to different model structures, store dataset
+            implement in subclass, otherwise raises: NotImplementedError
+        """
         raise NotImplementedError()
 
 
     def init_model(self):
-        # implement in subclass
+        """ initialize nn model instance, super params are specified for each model
+            implement in subclass, otherwise raises: NotImplementedError
+        """
         raise NotImplementedError()
     
 
     def train_model(self):
+        """ all nn models share the same training process:
+            1. split the dataset into training set and validation set
+            2. load pretrained model and define loss, optimizer, early-stopping, etc.
+            3. iterate through epochs, training and validating
+        """
         # # split training and testing sets without shuffling
         # # Dte, Dtr = MyDataset(Dtr[int(len(Dtr)*0.8):]), MyDataset(Dtr[:int(len(Dtr)*0.8)])
         # split datasets with shuffling (sequences are independent, so it's ok to shuffle)
@@ -110,11 +119,29 @@ class NN_model(object):
 
 
     def get_forecast(self):
-        # implement in subclass
-        raise NotImplementedError()
+        """ all nn models share the same forecasting process:
+            1. get forecast results from last seq
+            2. reshape and scale
+        """
+        self.pred = self.model(self.last_seq).cpu().detach().numpy() # (1,n_out)
+        self.pred = self.scalar.inverse_transform(self.pred)
+        return
 
 
-    def visualize_performance(self):
+    def predict(self, dataX, dataY, seq_len, pred_len):
+        """ all nn models share the same prediction process:
+        """
+        self.prepare_data(dataX, dataY, seq_len, pred_len)
+        self.init_model()
+        self.train_model()
+        self.get_forecast()
+        return self.pred
+
+
+    def vis_performance(self, plot=False):
+        """ visualize model fitting performance, use the whole dataset
+            metrics (rmse and mape) of each columns are printed, the first 4 rows are plotted
+        """
         Dtr = DataLoader(MyDataset(self.dataset), batch_size=self.batch_size)
         real = []
         pred = []
@@ -133,16 +160,18 @@ class NN_model(object):
             rmse = cal_rmse(real[:,i], pred[:,i])
             mape = cal_mape(real[:,i], pred[:,i])
             print('the %ith output, RMSE=%.2f, MAPE=%.2f%%' %(i, rmse, mape))
-        # plot the first 4 columns
-        f, axes = plt.subplots(1,4)
-        f.suptitle('fitting performance of %s' %self.model_name)
-        for i in range(max(4,pred.shape[1])):
-            ax = axes[i]
-            ax.plot(real[:,i], label='real')
-            ax.plot(pred[:,i], label='pred')
-            ax.set_title('RMSE=%.2f, MAPE=%.2f%%' %(cal_rmse(real[:,i], pred[:,i]), cal_mape(real[:,i], pred[:,i])))
-            ax.legend()
-        plt.show()
+        if plot:
+            # plot the first 4 columns
+            n_subplot = min(4,pred.shape[1])
+            f, axes = plt.subplots(1,n_subplot)
+            f.suptitle('fitting performance of %s' %self.model_name)
+            for i in range(n_subplot):
+                ax = axes[i]
+                ax.plot(real[:,i], label='real')
+                ax.plot(pred[:,i], label='pred')
+                ax.set_title('RMSE=%.2f, MAPE=%.2f%%' %(cal_rmse(real[:,i], pred[:,i]), cal_mape(real[:,i], pred[:,i])))
+                ax.legend()
+            plt.show()
         return    
 
 

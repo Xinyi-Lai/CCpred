@@ -40,14 +40,14 @@ class TemporalBlock(nn.Module):
         super(TemporalBlock, self).__init__()
         self.conv1 = weight_norm(nn.Conv1d(n_inputs, n_outputs, kernel_size, stride=stride, padding=padding, dilation=dilation))
         self.conv2 = weight_norm(nn.Conv1d(n_outputs, n_outputs, kernel_size, stride=stride, padding=padding, dilation=dilation))
-        self.net = nn.Sequential(   self.conv1,         # x: [Batch, n_outputs, seq_len + padding]
-                                    Chomp1d(padding),   # x: [Batch, n_outputs, seq_len]
-                                    nn.ReLU(),          # x: [Batch, n_outputs, seq_len]
-                                    nn.Dropout(dropout),# x: [Batch, n_outputs, seq_len]
-                                    self.conv2,         # x: [Batch, n_outputs, seq_len + padding]
-                                    Chomp1d(padding),   # x: [Batch, n_outputs, seq_len]
-                                    nn.ReLU(),          # x: [Batch, n_outputs, seq_len]
-                                    nn.Dropout(dropout))# x: [Batch, n_outputs, seq_len]
+        self.net = nn.Sequential(   self.conv1,         # x: (Batch, n_outputs, seq_len + padding)
+                                    Chomp1d(padding),   # x: (Batch, n_outputs, seq_len)
+                                    nn.ReLU(),          # x: (Batch, n_outputs, seq_len)
+                                    nn.Dropout(dropout),# x: (Batch, n_outputs, seq_len)
+                                    self.conv2,         # x: (Batch, n_outputs, seq_len + padding)
+                                    Chomp1d(padding),   # x: (Batch, n_outputs, seq_len)
+                                    nn.ReLU(),          # x: (Batch, n_outputs, seq_len)
+                                    nn.Dropout(dropout))# x: (Batch, n_outputs, seq_len)
         # if input size (residual input) and output size (conv output) don't agree, add a conv 
         # layer to transform the channels, so that they can be added together and fed into relu
         if n_inputs != n_outputs:   self.downsample = nn.Conv1d(n_inputs, n_outputs, 1)
@@ -61,11 +61,11 @@ class TemporalBlock(nn.Module):
         if self.downsample is not None:
             self.downsample.weight.data.normal_(0, 0.01)
 
-    def forward(self, x):                   # x:   [Batch, n_inputs, seq_len]
-        out = self.net(x)                   # out: [Batch, n_outputs, seq_len]
-        if self.downsample is None: res = x # res: [Batch, n_outputs(=n_inputs), seq_len]
-        else: res = self.downsample(x)      # res: [Batch, n_outputs, seq_len]
-        return self.relu(out + res)         #      [Batch, n_outputs, seq_len]
+    def forward(self, x):                   # x:   (Batch, n_inputs, seq_len)
+        out = self.net(x)                   # out: (Batch, n_outputs, seq_len)
+        if self.downsample is None: res = x # res: (Batch, n_outputs(=n_inputs), seq_len)
+        else: res = self.downsample(x)      # res: (Batch, n_outputs, seq_len)
+        return self.relu(out + res)         #      (Batch, n_outputs, seq_len)
 
 
 class TemporalConvNet(nn.Module):
@@ -73,7 +73,6 @@ class TemporalConvNet(nn.Module):
         the current structure supports 1D sequence modeling well, i.e., num_inputs = 1;
         for vector series (a vector input at each timestep), take it as different input channels;
         for matrix series (e.g. an image input at each timestep), it would be kinda sticky
-        FUTURE: support higher dimensional inputs
         Args:
             num_inputs (int): num of input features
             num_channels (list): a list of num_channel of each layer, e.g., num_channels=[25,25,25,25] means 4 hidden layers with 25 hidden channels in each layer
@@ -94,13 +93,13 @@ class TemporalConvNet(nn.Module):
         self.network = nn.Sequential(*layers)
         self.fc = nn.Linear(num_channels[-1], num_outputs)
 
-    def forward(self, x): # [Batch, num_inputs, seq_len]
+    def forward(self, x):   # (Batch, num_inputs, seq_len]
         # NOTE: A bit tricky here. 
-        # For RNNs, input size is usually [Batch, seq_len, channels] or [seq_len, Batch, channels]. 
-        # Here, input size is [Batch, num_inputs, seq_len], so that it can convolve across timesteps.
-        x = self.network(x) # [Batch, num_channels[-1], seq_len]
-        x = x[:,:,-1]       # [Batch, num_channels[-1]] # the last of the sequence
-        x = self.fc(x)      # [Batch, num_outputs]
+        # For RNNs, input size is usually (Batch, seq_len, channels) or (seq_len, Batch, channels). 
+        # Here, input size is (Batch, num_inputs, seq_len), so that it can convolve across timesteps.
+        x = self.network(x) # (Batch, num_channels[-1], seq_len)
+        x = x[:,:,-1]       # (Batch, num_channels[-1]) # the last of the sequence
+        x = self.fc(x)      # (Batch, num_outputs)
         return x
 
 
@@ -145,13 +144,6 @@ class TCN_model(NN_model):
         return
 
 
-    def init_model(self, n_channels):
+    def init_model(self, n_channels=[10,10]):
         self.model = TemporalConvNet(num_inputs=self.n_in, num_channels=n_channels, num_outputs=self.n_out).to(self.device)
         return
-
-
-    def get_forecast(self):
-        # get forecast results from last seq
-        self.pred = self.model(self.last_seq).cpu().detach().numpy() # (pred_len, 1)
-        self.pred = self.scalar.inverse_transform(self.pred)
-        return self.pred

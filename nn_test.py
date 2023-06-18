@@ -10,30 +10,29 @@ from tqdm import tqdm
 from termcolor import colored
 
 from utils import *
-from models import TCN_model
+from models import TCN_model, LSTM_model, GRU_model, BPNN_model
 
 
 def pred_step(win_len, t):
 
     df = pd.read_excel('data\source\CCprice.xlsx', sheet_name='Sheet1')
     Cprice = np.array(df['C_Price'])
-
     win = Cprice[t:t+win_len]
-    dataX = np.array([win, np.random.rand(len(win))]).T
+    dataX = np.array([win]).T
     dataY = win
 
-    real = Cprice[t+win_len]
+    batch_size = 1
 
-    m = TCN_model('TCN-step', batch_size=2)
-    m.prepare_data(dataX, dataY, seq_len=30, pred_len=4)
-    m.init_model(n_channels=[10,10])
-    with HiddenPrints():
-        m.train_model()
-    pred = m.get_forecast()
-    # print('predicted: %.3f, observed: %.3f' %(pred, real))
-    m.visualize_performance()
+    m1 = TCN_model('TCN-step', batch_size)
+    m2 = GRU_model('GRU-step', batch_size)
+    m3 = LSTM_model('LSTM-step', batch_size)
+    m4 = BPNN_model('BPNN-step', batch_size)
 
-    
+    for m in [m1,m2,m3,m4]:
+        with HiddenPrints():
+            pred = m.predict(dataX, dataY, seq_len=30, pred_len=4)
+        print(pred)
+        m.vis_performance()
 
     return
 
