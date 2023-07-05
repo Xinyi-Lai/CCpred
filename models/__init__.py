@@ -1,3 +1,5 @@
+from .early_stopping import EarlyStopping
+
 from .nn_model import NN_model
 
 from .bpnn import BPNN_model

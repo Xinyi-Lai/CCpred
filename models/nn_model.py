@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 
 from utils import *
-from early_stopping import EarlyStopping
+from models.early_stopping import EarlyStopping
 
 import random
 
