@@ -11,15 +11,6 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from utils import *
 from models.early_stopping import EarlyStopping
 
-import random
-
-# TODO Fix the random seed to ensure the reproducibility of the experiment
-random_seed = 10
-random.seed(random_seed)
-np.random.seed(random_seed)
-torch.manual_seed(random_seed)
-torch.cuda.manual_seed_all(random_seed)
-
 
 class NN_model(object):
     """ Provides a common interface to all neural network forecasting model classes.
@@ -161,15 +152,16 @@ class NN_model(object):
             mape = cal_mape(real[:,i], pred[:,i])
             print('the %ith output, RMSE=%.2f, MAPE=%.2f%%' %(i, rmse, mape))
         if plot:
-            # plot the first 4 columns
-            n_subplot = min(4,pred.shape[1])
-            f, axes = plt.subplots(1,n_subplot)
+            # plot the first, middle, and last columns
+            f, axes = plt.subplots(1,3)
             f.suptitle('fitting performance of %s' %self.model_name)
-            for i in range(n_subplot):
-                ax = axes[i]
-                ax.plot(real[:,i], label='real')
-                ax.plot(pred[:,i], label='pred')
-                ax.set_title('RMSE=%.2f, MAPE=%.2f%%' %(cal_rmse(real[:,i], pred[:,i]), cal_mape(real[:,i], pred[:,i])))
+            for idx, icol in enumerate([0, pred.shape[1]//2, -1]):
+                ax = axes[idx]
+                r = real[:,icol]
+                p = pred[:,icol]
+                ax.plot(r, label='real')
+                ax.plot(p, label='pred')
+                ax.set_title('col%d, RMSE=%.2f, MAPE=%.2f%%' %(icol, cal_rmse(r,p), cal_mape(r,p)))
                 ax.legend()
             plt.show()
         return    

@@ -1,4 +1,5 @@
 '''
+!!! Decrepit !!! see nn_test.py
 Predict with single model (windowing + [pred]).
 '''
 

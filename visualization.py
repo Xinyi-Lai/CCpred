@@ -11,6 +11,22 @@ import pickle
 from utils import *
 
 
+def plot_sg_result(trail_name): #TODO:
+
+    f = open(trail_name+'.pkl', 'rb')
+    _, pred, real = pickle.load(f)
+    f.close()
+    # if trail_name[0:2] == 'hb':
+    #     pred = np.sum(pred, axis=0)
+    plt.figure()
+    plt.title('%s, RMSE=%.2f, MAPE=%.2f%%' %(trail_name, cal_rmse(real,pred), cal_mape(real,pred)))
+    plt.plot(pred, label='pred')
+    plt.plot(real, label='real')
+    plt.legend()
+    plt.show()
+
+    return
+
 def plot_result(trail_name):
     f = open(trail_name+'.pkl', 'rb')
     _, pred, real = pickle.load(f)
@@ -147,4 +163,6 @@ if __name__ == "__main__":
     
     # inspect_results()
 
-    plot_result(trail_name='hb_win200_sam1_emd_arima_tcn')
+    # plot_result(trail_name='hb_win200_sam1_emd_arima_tcn')
+
+    plot_sg_result(trail_name='sg_win200_sam1_tcn')

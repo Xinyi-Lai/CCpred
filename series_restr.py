@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pwlf # piecewise linear fit
+from termcolor import colored
 
 # entropy helper to indicate the complexity of a series
 import EntropyHub as EH
@@ -28,7 +29,7 @@ def decomp_ceemdan(series):
     return imfs
 
 def decomp_ceemdan_ex(series,ex=5):
-    # extend with symmetry to mitigate the windowing effect
+    # FIXME extend with symmetry to mitigate the windowing effect
     endpt = series[-1]
     tail = series[-ex-1:-1]
     tail_symm = 2*endpt - tail[::-1]
@@ -302,36 +303,35 @@ def demo_series_restr(win_len=200, t=500):
 
 
 ############ prepare data ############
-def preparedata_win_restr(win_len:int, win_step:int, method:str):
-    '''
-        It takes a long time to decompose the windowed data (~5s with CEEMDAN, 1/3 of the iteration time),
+def preparedata_win_restr(win_len:int, method:str, pred_len=10):
+    ''' It takes a long time to decompose the windowed data (~5s with CEEMDAN, 1/3 of the iteration time),
         and CEEMDAN/EEMD introduce randomness during decomposition every time we run a simulation.
         So, to accelerate simulation, this script precalculates and stores the decomposition results.
     '''
     import pickle
     from tqdm import tqdm
 
-    trail_name = "restr_win%d_sam%d_%s" %(win_len, win_step, method)
-    print(trail_name)
+    trail_name = "restr_win%d_%s" %(win_len, method)
+    print(colored(trail_name, 'blue'))
 
     # load data
     df = pd.read_excel('data\source\CCprice.xlsx', sheet_name='Sheet1')
     Cprice = np.array(df['C_Price'])
 
-    # slide the window, and decompose at each step
-    timesteps = range(0, len(Cprice)-win_len-1, win_step) # sample!!!
-    win_ys = np.zeros(len(timesteps))
+    # slide the window, decompose at each step, only for the last 100 steps
+    val_num = 100
+    win_ys = np.zeros((val_num, pred_len))
     win_restr = []
 
-    for t in tqdm(range(len(timesteps))): # sample!!!
-        win_x = Cprice[timesteps[t] : timesteps[t]+win_len]
-        win_y = Cprice[timesteps[t]+win_len]
-        win_ys[timesteps[t]] = win_y
+    for i in tqdm(range(val_num)):
+        t = len(Cprice) - val_num - win_len - pred_len + i
+        win_x = Cprice[t : t+win_len]
+        win_ys[i,:] = Cprice[t+win_len : t+win_len+pred_len]
 
         if method == 'ceemdan':
             imfs = decomp_ceemdan(win_x)
             reconstr = integr_fuzzen_pwlf(imfs, n_integr=2)
-        elif method == 'ceemdan_ex':
+        elif method == 'ceemdan_ex': # TODO
             imfs = decomp_ceemdan_ex(win_x)
             reconstr = integr_fuzzen_pwlf(imfs, n_integr=2)
         elif method == 'eemd':
@@ -345,7 +345,7 @@ def preparedata_win_restr(win_len:int, win_step:int, method:str):
         #     reconstr = integr_fuzzen_pwlf(imfs, n_integr=2)
         elif method == 'ssa':
             reconstr = restr_ssa(win_x)
-        elif method == 'ssa_ex':
+        elif method == 'ssa_ex': # TODO
             reconstr = restr_ssa_ex(win_x)
         else:
             print('unrecognized method: ' + method)
@@ -355,7 +355,7 @@ def preparedata_win_restr(win_len:int, win_step:int, method:str):
 
     # store
     win_restr = np.array(win_restr)
-    params = { 'win_len': win_len, 'win_step': win_step, 'method': method }
+    params = { 'win_len': win_len, 'method': method }
     f = open(trail_name+".pkl", "wb")
     pickle.dump((params, win_restr, win_ys), f)
     f.close()
@@ -377,5 +377,5 @@ if __name__ == '__main__':
     # for method in methods:
     #     preparedata_win_restr(win_len=200, win_step=1, method=method)
 
-    preparedata_win_restr(win_len=200, win_step=1, method='ceemdan_ex')
+    preparedata_win_restr(win_len=500, method='ceemdan')
 
