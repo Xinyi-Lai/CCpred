@@ -1,6 +1,7 @@
 '''
-!!! Decrepit !!! see nn_test.py
-Predict with single model (windowing + [pred]).
+Predict with single framework (windowing + [pred]).
+test refactored nn models with single prediction.
+FUTURE: support arima??
 '''
 
 import pickle
@@ -11,83 +12,127 @@ from tqdm import tqdm
 from termcolor import colored
 
 from utils import *
+from models import TCN_model, LSTM_model, GRU_model, BPNN_model
 
-# models
-from sarimax import forecast_arima
-from nn_models import forecast_BPNN, forecast_LSTM, forecast_GRU, forecast_TCN
+import random
+import torch
+
+# TODO Fix the random seed to ensure the reproducibility of the experiment
+random_seed = 10
+random.seed(random_seed)
+np.random.seed(random_seed)
+torch.manual_seed(random_seed)
+torch.cuda.manual_seed_all(random_seed)
 
 
-def pred_single(win_len, win_step, method, vis=False):
+batch_size = 1
+
+
+def pred_step(win_len, t):
+
+    df = pd.read_excel('data\source\CCprice.xlsx', sheet_name='Sheet1')
+    Cprice = np.array(df['C_Price'])
+    win = Cprice[t:t+win_len]
+    dataX = np.array([win]).T
+    dataY = win
+
+    batch_size = 1
+
+    m1 = TCN_model('TCN-step', batch_size)
+    m2 = GRU_model('GRU-step', batch_size)
+    m3 = LSTM_model('LSTM-step', batch_size)
+    m4 = BPNN_model('BPNN-step', batch_size)
+
+    for m in [m1,m2,m3,m4]:
+        # with HiddenPrints():
+        pred = m.predict(dataX, dataY, seq_len=200, pred_len=10)
+        print(pred)
+        m.vis_performance(True)
+
+    return
+
+
+def pred_single(win_len, seq_len, method, pred_len=10, vis=False):
 
     params = {
         'win_len': win_len,
-        'win_step': win_step,
-        'method': method # {'arima', 'bpnn', 'lstm', 'gru', 'tcn'}
+        'seq_len': seq_len,
+        'method': method # {'tcn', 'gru', 'lstm', 'bpnn', 'arima'}
     }
-    trail_name = "sg_win%d_sam%d_%s" %(params['win_len'], params['win_step'], params['method'])
+    trail_name = "sg_win%d_seq%d_%s" %(win_len, seq_len, method)
     print(colored(trail_name, 'blue'))
+
+    method_dict = {
+        'tcn': TCN_model, 'gru': GRU_model, 'lstm': LSTM_model, 'bpnn': BPNN_model
+    }
+    if method not in method_dict.keys():
+        print('unrecognized method: ' + method)
+        return
 
     # load data
     df = pd.read_excel('data\source\CCprice.xlsx', sheet_name='Sheet1')
     Cprice = np.array(df['C_Price'])
 
-
-    # slide the window, and predict at each step
-    timesteps = range(0, len(Cprice)-win_len-1, win_step) # sample!!!
-    real = np.zeros(len(timesteps))
-    pred = np.zeros(len(timesteps))
+    # slide the window, predict at each step, validate with the last 100 steps
+    val_num = 100
+    real = np.zeros((val_num, pred_len))
+    pred = np.zeros((val_num, pred_len))
  
-    for t in tqdm(range(len(timesteps))): # sample!!!
-        win_x = Cprice[timesteps[t] : timesteps[t]+win_len]
-        win_y = Cprice[timesteps[t]+win_len]
-        
-        with HiddenPrints():
-            if method == 'arima':
-                step_pred, _ = forecast_arima(win_x)
-            elif method == 'bpnn':
-                step_pred, _ = forecast_BPNN(win_x, trail_name)
-            elif method == 'lstm':
-                step_pred, _ = forecast_LSTM(win_x, trail_name)
-            elif method == 'gru':
-                step_pred, _ = forecast_GRU(win_x, trail_name)
-            elif method == 'tcn':
-                step_pred, _ = forecast_TCN(win_x, trail_name)
-            else:
-                print('unrecognized pred_method: ' + method)
-                break
+    for i in tqdm(range(val_num)):
+        t = len(Cprice) - val_num - win_len - pred_len + i
+        win = Cprice[t : t+win_len]
+        real[i,:] = Cprice[t+win_len : t+win_len+pred_len]
+        dataX = np.array([win]).T
+        dataY = win
 
-        real[t] = win_y
-        pred[t] = step_pred
+        m = method_dict[method](trail_name, batch_size)
+        with HiddenPrints():
+            p = m.predict(dataX, dataY, seq_len, pred_len)
+        pred[i,:] = p
 
     # store
     f = open(trail_name+".pkl", "wb")
     pickle.dump((params, pred, real), f)
     f.close()
 
-    # # load
+    # load
     # f = open(trail_name+".pkl", "rb")
     # params, pred, real = pickle.load(f)
     # f.close()
 
-    rmse = cal_rmse(real, pred)
-    mape = cal_mape(real, pred)
-    print('%s, RMSE=%.2f, MAPE=%.2f%%' %(trail_name, rmse, mape))
 
-    # visualize
+    # performance
+    print('performance of %s' %trail_name)
+    for i in range(pred.shape[1]):
+        rmse = cal_rmse(real[:,i], pred[:,i])
+        mape = cal_mape(real[:,i], pred[:,i])
+        print('col %d: RMSE=%.2f, MAPE=%.2f%%' %(i, rmse, mape))
     if vis:
-        plt.figure()
-        plt.title('%s, RMSE=%.2f, MAPE=%.2f%%' %(trail_name, rmse, mape))
-        plt.plot(pred, label='pred')
-        plt.plot(real, label='real')
-        plt.legend()
+        # plot the first, middle, and last columns
+        f, axes = plt.subplots(1,3)
+        f.suptitle('performance of %s' %trail_name)
+        for idx, icol in enumerate([0, pred.shape[1]//2, -1]):
+            ax = axes[idx]
+            r = real[:,icol]
+            p = pred[:,icol]
+            ax.plot(r, label='real')
+            ax.plot(p, label='pred')
+            ax.set_title('col%d, RMSE=%.2f, MAPE=%.2f%%' %(icol, cal_rmse(r,p), cal_mape(r,p)))
+            ax.legend()
         plt.show()
 
     return
 
+
+
 if __name__ == '__main__':
     
-    # pred_methods = ['tcn', 'arima', 'gru', 'lstm', 'bpnn']
-    # for i in pred_methods:
-    #     pred_single(win_len=200, win_step=1, method=i, vis=False)
-    
-    pred_single(win_len=200, win_step=1, method='tcn', vis=False)
+    # pred_step(win_len=1000, t=200)
+
+    # win_len = [1000, 500]
+    # seq_len = [200]
+    # methods = ['tcn', 'gru', 'lstm', 'bpnn', 'arima']
+    # pred_single(win_len=1000, seq_len=200, method='gru', vis=False)
+
+    for i in ['tcn', 'gru', 'lstm', 'bpnn']:
+        pred_single(win_len=500, seq_len=100, method=i, vis=False)

@@ -1,6 +1,6 @@
 '''
 Neural network models for forecasting
-NOTE: refactored into models.py
+!!! deprecated, see models.py
 '''
 
 import os
