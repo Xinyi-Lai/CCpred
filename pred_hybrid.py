@@ -63,11 +63,8 @@ def pred_hybrid(win_len, restr, hi_pred, lo_pred, seq_len=200, pred_len=10, vis=
     print(win_restrs.shape) # len(win_restrs), n_comp, pred_len
     print(win_ys.shape) # len(win_restrs), pred_len
 
-    # FIXME
-    win_restrs = win_restrs[:10]
-    win_ys = win_ys[:10]
 
-    # # load data TODO pred_full
+    # # load data TODO in pred_full
     # df = pd.read_excel('data\source\CCprice.xlsx', sheet_name='Sheet1')
     # Cprice = np.array(df['C_Price'])
 
@@ -118,7 +115,7 @@ def pred_hybrid(win_len, restr, hi_pred, lo_pred, seq_len=200, pred_len=10, vis=
     f.close()
 
     # # load
-    # f = open(trail_name+".pkl", "rb")
+    # f = open("results\\"+trail_name+".pkl", "rb")
     # _, pred, real = pickle.load(f)
     # f.close()
 
@@ -146,5 +143,11 @@ def pred_hybrid(win_len, restr, hi_pred, lo_pred, seq_len=200, pred_len=10, vis=
 
 if __name__ == '__main__':
     
-    pred_hybrid(win_len=1000, restr='ssa', hi_pred='tcn', lo_pred='tcn', seq_len=200, pred_len=10, vis=False)
+    pred_hybrid(win_len=1000, restr='ssa_ex', hi_pred='bpnn', lo_pred='gru', seq_len=200)
+    
+    pred_hybrid(win_len=1000, restr='ssa', hi_pred='bpnn', lo_pred='gru', seq_len=200)
+
+    pred_hybrid(win_len=1000, restr='ceemdan_ex', hi_pred='bpnn', lo_pred='gru', seq_len=200)
+    
+    pred_hybrid(win_len=1000, restr='ceemdan', hi_pred='bpnn', lo_pred='gru', seq_len=200)
     
