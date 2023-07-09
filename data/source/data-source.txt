@@ -1,6 +1,0 @@
-https://ember-climate.org/data-catalogue/european-wholesale-electricity-price-data/
-european_wholesale_electricity_price_data_daily-5.csv
-
-https://www.eex.com/en/downloads#%7B%22downloads-container_0%22%3A%7B%22type%22%3A%22Market%20Data%22%2C%22searchTerm%22%3A%22emission%22%7D%7D
-primary_auction_report_20230418_41186423.xlsx
-emission-spot-primary-market-auction-report-2022-data.xlsx

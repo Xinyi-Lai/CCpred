@@ -15,49 +15,90 @@ def FuzzyEn2(s:np.ndarray, r=0.2, m=2, n=2):
     return EH.FuzzEn(s, 2, r=(th, n))[0][-1]
 
 
-
-############ decomposition ############
-
-### EMD++
-
-# CEEMDAN (Complete ensemble EMD with adaptive noise)
-def decomp_ceemdan(series):
-    from PyEMD import CEEMDAN
-    ceemdan = CEEMDAN()
-    ceemdan.ceemdan(series)
-    imfs, res = ceemdan.get_imfs_and_residue()
-    return imfs
-
-def decomp_ceemdan_ex(series,ex=5):
-    # FIXME extend with symmetry to mitigate the windowing effect
+############ sequence extension ############
+def extend_symmetry(series, ex=5):
+    """ extend the series with symmetry to mitigate the windowing effect
+        Args:
+            series (np.array): the original series, shape of (win_len,)
+            ex (int, optional): the number of points to extend, default to be 5.
+        Returns:
+            series (np.array): the extended series, shape of (win_len+2*ex,)
+        Notes:
+            after decomposition, truncate the padded part with imfs[:,ex:-ex]
+    """
     endpt = series[-1]
     tail = series[-ex-1:-1]
     tail_symm = 2*endpt - tail[::-1]
     startpt = series[0]
     head = series[1:ex+1]
     head_symm = 2*startpt - head[::-1]
-    series = np.concatenate((head_symm, series, tail_symm))
+    return np.concatenate((head_symm, series, tail_symm))
+
+
+############ decomposition ############
+
+
+### EMD++
+
+# CEEMDAN (Complete ensemble EMD with adaptive noise)
+def decomp_ceemdan(series, ex=0):
+    """decompose the series with CEEMDAN
+        Args:
+            series (np.array): time series to be decomposed, shape of (win_len,)
+            ex (int, optional): the number of points to extend, 0 means no extension.
+        Returns:
+            series (np.array): the decomposed series, shape of (win_len,)
+    """
+    if ex != 0:
+        series = extend_symmetry(series, ex)
     from PyEMD import CEEMDAN
     ceemdan = CEEMDAN()
     ceemdan.ceemdan(series)
     imfs, res = ceemdan.get_imfs_and_residue()
+    if ex != 0:
+        imfs = imfs[:,ex:-ex]
     return imfs
 
 # EEMD (Ensemble Empirical Mode Decomposition)
-def decomp_eemd(series):
+def decomp_eemd(series, ex=0):
+    """decompose the series with EEMD
+        Args:
+            series (np.array): time series to be decomposed, shape of (win_len,)
+            ex (int, optional): the number of points to extend, 0 means no extension.
+        Returns:
+            series (np.array): the decomposed series, shape of (win_len,)
+    """
+    if ex != 0:
+        series = extend_symmetry(series, ex)
     from PyEMD import EEMD
     eemd = EEMD()
     eemd.eemd(series)
     imfs, res = eemd.get_imfs_and_residue()
-    return np.concatenate((imfs, res.reshape(1,-1)))
+    imfs = np.concatenate((imfs, res.reshape(1,-1)))
+    if ex != 0:
+        imfs = imfs[:,ex:-ex]
+    return imfs
 
 # EMD (Empirical Mode Decomposition)
-def decomp_emd(series):
+def decomp_emd(series, ex=0):
+    """decompose the series with EMD
+        Args:
+            series (np.array): time series to be decomposed, shape of (win_len,)
+            ex (int, optional): the number of points to extend, 0 means no extension.
+        Returns:
+            series (np.array): the decomposed series, shape of (win_len,)
+    """
+    if ex != 0:
+        series = extend_symmetry(series, ex)
     from PyEMD import EMD
     emd = EMD()
     emd.emd(series)
     imfs, res = emd.get_imfs_and_residue()
-    return np.concatenate((imfs, res.reshape(1,-1)))
+    imfs = np.concatenate((imfs, res.reshape(1,-1)))
+    if ex != 0:
+        imfs = imfs[:,ex:-ex]
+    return imfs
+
 
 
 ### EWT (Empirical Wavelet Transform) TODO: to be explored: EWT, ESMD, VMD, DoubleDecomp
@@ -155,16 +196,21 @@ def integr_fine_to_coarse(imfs):
 
 ############ Singular Spectrum Analysis ############
 
-def restr_ssa(series, n_decomp=10, n_integr=5, vis=False):
+def restr_ssa(series, ex=0, n_decomp=10, n_integr=5, vis=False):
     """ restructure the series based on sigular spectrum analysis, first decompose and then group based on weighted correlation
         Args:
             series (np.array): time series to be restructure
+            ex (int, optional): number of points to extend, 0 means no extension
             n_decomp (int, optional): number of subsequences to be decomposed at first, (window length in SSA), default to be 10
             n_integr (int, optional): number of clusters, default to be 3 (hi-freq, mi-freq, lo-freq)
             vis (bool, optional): whether to show vis results, default to be False
         Returns:
             reconstr (np.array): the reconstructed subsequences, higher fuzzen (hi-freq) comes first, shape of (n_integr, win_len)
     """
+
+    # extend the series
+    if ex != 0:
+        series = extend_symmetry(series, ex)
 
     # decompose with SSA
     from ssa import SSA
@@ -185,55 +231,9 @@ def restr_ssa(series, n_decomp=10, n_integr=5, vis=False):
     sortIdx = new_sigma.argsort()[::-1] # higher sigma (signal instead of noise) comes first
     reconstr = reconstr[sortIdx]
 
-    if vis:
-        vis_restr(decomposed=np.array(ssa.components_to_df()).T, grouped=reconstr, orig=series)
-
-    return reconstr
-
-
-
-def restr_ssa_ex(series, ex=5, n_decomp=10, n_integr=5, vis=False):
-    """ restructure the series based on sigular spectrum analysis, first decompose and then group based on weighted correlation
-        Args:
-            series (np.array): time series to be restructure
-            ex
-            n_decomp (int, optional): number of subsequences to be decomposed at first, (window length in SSA), default to be 10
-            n_integr (int, optional): number of clusters, default to be 3 (hi-freq, mi-freq, lo-freq)
-            vis (bool, optional): whether to show vis results, default to be False
-        Returns:
-            reconstr (np.array): the reconstructed subsequences, higher fuzzen (hi-freq) comes first, shape of (n_integr, win_len)
-    """
-    # extend series to mitigate the windowing effect
-    # extend with symmetry
-    endpt = series[-1]
-    tail = series[-ex-1:-1]
-    tail_symm = 2*endpt - tail[::-1]
-    startpt = series[0]
-    head = series[1:ex+1]
-    head_symm = 2*startpt - head[::-1]
-    series = np.concatenate((head_symm, series, tail_symm))
-
-    # decompose with SSA
-    from ssa import SSA
-    ssa = SSA(series, n_decomp)
-
-    # group with AgglomerativeClustering based on wcorr
-    from sklearn.cluster import AgglomerativeClustering
-    distance_matrix = 1 / ssa.Wcorr
-    cls = AgglomerativeClustering(n_clusters=n_integr, linkage='average', affinity='precomputed')
-    cls = cls.fit(distance_matrix)
-    reconstr = np.zeros((n_integr, len(series)))
-    new_sigma = np.zeros(n_integr)
-    for i in range(n_integr):
-        reconstr[i,:] = ssa.reconstruct(np.where(cls.labels_==i)[0])
-        new_sigma[i] = np.sum(ssa.Sigma[np.where(cls.labels_==i)[0]])
-
-    # sort by new sigma
-    sortIdx = new_sigma.argsort()[::-1] # higher sigma (signal instead of noise) comes first
-    reconstr = reconstr[sortIdx]
-
-    # truncate # FIXME:
-    reconstr = reconstr[:,ex:-ex]
+    # trim the extended part
+    if ex != 0:
+        reconstr = reconstr[:,ex:-ex]
 
     if vis:
         vis_restr(decomposed=np.array(ssa.components_to_df()).T, grouped=reconstr, orig=series)
@@ -331,8 +331,8 @@ def preparedata_win_restr(win_len:int, method:str, pred_len=10):
         if method == 'ceemdan':
             imfs = decomp_ceemdan(win_x)
             reconstr = integr_fuzzen_pwlf(imfs, n_integr=2)
-        elif method == 'ceemdan_ex': # TODO
-            imfs = decomp_ceemdan_ex(win_x)
+        elif method == 'ceemdan_ex':
+            imfs = decomp_ceemdan(win_x, ex=5)
             reconstr = integr_fuzzen_pwlf(imfs, n_integr=2)
         elif method == 'eemd':
             imfs = decomp_eemd(win_x)
@@ -345,8 +345,8 @@ def preparedata_win_restr(win_len:int, method:str, pred_len=10):
         #     reconstr = integr_fuzzen_pwlf(imfs, n_integr=2)
         elif method == 'ssa':
             reconstr = restr_ssa(win_x)
-        elif method == 'ssa_ex': # TODO
-            reconstr = restr_ssa_ex(win_x)
+        elif method == 'ssa_ex':
+            reconstr = restr_ssa(win_x, ex=5)
         else:
             print('unrecognized method: ' + method)
             return
@@ -377,5 +377,7 @@ if __name__ == '__main__':
     # for method in methods:
     #     preparedata_win_restr(win_len=200, win_step=1, method=method)
 
-    preparedata_win_restr(win_len=500, method='ceemdan')
+    for win_len in [1000,500]:
+        for method in ['ceemdan_ex', 'ssa_ex']:
+            preparedata_win_restr(win_len, method)
 
