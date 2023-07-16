@@ -29,19 +29,20 @@ batch_size = 1
 
 # test refactored nn models
 def pred_step(win_len, t):
-    df = pd.read_excel('data\source\CCprice.xlsx', sheet_name='Sheet1')
-    Cprice = np.array(df['C_Price'])
-    win = Cprice[t:t+win_len]
-    dataX = np.array([win]).T
-    dataY = win
+    df = pd.read_excel('data\df.xlsx', sheet_name='Sheet1')
+    dataY = np.array(df['Cprice'])
+    dataX = np.array(df.iloc[:,1:]) # carbon price at the previous time step is also used as feature
 
-    m1 = TCN_model('TCN-step', batch_size)
-    m2 = GRU_model('GRU-step', batch_size)
-    m3 = LSTM_model('LSTM-step', batch_size)
-    m4 = BPNN_model('BPNN-step', batch_size)
+    dataY = dataY[t:t+win_len, np.newaxis] # (win_len, 1)
+    dataX = dataX[t:t+win_len, :] # (win_len, n_comp)
+
+    m1 = TCN_model('step-TCN', batch_size)
+    m2 = GRU_model('step-GRU', batch_size)
+    m3 = LSTM_model('step-LSTM', batch_size)
+    m4 = BPNN_model('step-BPNN', batch_size)
     for m in [m1,m2,m3,m4]:
         # with HiddenPrints():
-        pred = m.predict(dataX, dataY, seq_len=200, pred_len=10)
+        pred = m.predict(dataX, dataY, seq_len=100, pred_len=10)
         print(pred)
         m.vis_performance(True)
 
@@ -49,51 +50,45 @@ def pred_step(win_len, t):
 
 
 # predict with single framework (windowing + [pred]).
-def pred_single(win_len, seq_len, method, pred_len=10, vis=False):
+def pred_single(win_len, seq_len, method, pred_len=10, vis=False, val_num=100):
 
-    params = {
-        'win_len': win_len, 'seq_len': seq_len, 'method': method
-    }
+    params = { 'win_len': win_len, 'seq_len': seq_len, 'method': method }
     trail_name = "sg_win%d_seq%d_%s" %(win_len, seq_len, method)
     print(colored(trail_name, 'blue'))
 
-    # method_dict = {
-    #     'tcn': TCN_model, 'gru': GRU_model, 'lstm': LSTM_model, 'bpnn': BPNN_model
-    # }
-    # if method not in method_dict.keys():
-    #     print('unrecognized method: ' + method)
-    #     return
+    method_dict = { 'tcn': TCN_model, 'gru': GRU_model, 'lstm': LSTM_model, 'bpnn': BPNN_model }
+    if method not in method_dict.keys():
+        print('unrecognized method: ' + method)
+        return
 
-    # # load data
-    # df = pd.read_excel('data\source\CCprice.xlsx', sheet_name='Sheet1')
-    # Cprice = np.array(df['C_Price'])
+    # load data
+    df = pd.read_excel('data\df.xlsx', sheet_name='Sheet1')
+    dataY = np.array(df['Cprice'])
+    dataX = np.array(df.iloc[:,1:]) # carbon price at the previous time step is also used as feature
 
-    # # slide the window, predict at each step, validate with the last 100 steps
-    # val_num = 100
-    # real = np.zeros((val_num, pred_len))
-    # pred = np.zeros((val_num, pred_len))
+    # slide the window, predict at each step, validate with the last 100 steps
+    real = np.zeros((val_num, pred_len))
+    pred = np.zeros((val_num, pred_len))
  
-    # for i in tqdm(range(val_num)):
-    #     t = len(Cprice) - val_num - win_len - pred_len + i
-    #     win = Cprice[t : t+win_len]
-    #     real[i,:] = Cprice[t+win_len : t+win_len+pred_len]
-    #     dataX = np.array([win]).T
-    #     dataY = win
+    for i in tqdm(range(val_num)):
+        t = len(dataY) - win_len - pred_len - val_num + i
+        real[i,:] = dataY[t+win_len : t+win_len+pred_len]
+        winY = dataY[t:t+win_len, np.newaxis] # (win_len, 1)
+        winX = dataX[t:t+win_len, :] # (win_len, n_comp)
+        m = method_dict[method](trail_name, batch_size)
+        with HiddenPrints():
+            p = m.predict(winX, winY, seq_len, pred_len)
+        pred[i,:] = p
 
-    #     m = method_dict[method](trail_name, batch_size)
-    #     with HiddenPrints():
-    #         p = m.predict(dataX, dataY, seq_len, pred_len)
-    #     pred[i,:] = p
-
-    # # store
-    # f = open(trail_name+".pkl", "wb")
-    # pickle.dump((params, pred, real), f)
-    # f.close()
-
-    # load
-    f = open("results\\"+trail_name+".pkl", "rb")
-    params, pred, real = pickle.load(f)
+    # store
+    f = open(trail_name+".pkl", "wb")
+    pickle.dump((params, pred, real), f)
     f.close()
+
+    # # load
+    # f = open("results\\"+trail_name+".pkl", "rb")
+    # params, pred, real = pickle.load(f)
+    # f.close()
 
     # performance
     print('performance of %s' %trail_name)
@@ -121,13 +116,13 @@ def pred_single(win_len, seq_len, method, pred_len=10, vis=False):
 
 if __name__ == '__main__':
     
-    # pred_step(win_len=1000, t=200)
+    # pred_step(win_len=800, t=100)
 
     # win_len = [1000, 500]
     # seq_len = [200, 100]
     # methods = ['tcn', 'gru', 'lstm', 'bpnn']
 
-    pred_single(win_len=500, seq_len=100, method='tcn', vis=False)
+    pred_single(win_len=800, seq_len=100, method='gru', vis=True, val_num=20)
 
     # for i in ['tcn', 'gru', 'lstm', 'bpnn']:
     #     pred_single(win_len=500, seq_len=100, method=i, vis=True)

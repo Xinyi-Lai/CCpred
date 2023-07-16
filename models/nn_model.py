@@ -155,7 +155,7 @@ class NN_model(object):
             # plot the first, middle, and last columns
             f, axes = plt.subplots(1,3)
             f.suptitle('fitting performance of %s' %self.model_name)
-            for idx, icol in enumerate([0, pred.shape[1]//2, -1]):
+            for idx, icol in enumerate([0, pred.shape[1]//2, pred.shape[1]-1]):
                 ax = axes[idx]
                 r = real[:,icol]
                 p = pred[:,icol]

@@ -112,22 +112,21 @@ class TCN_model(NN_model):
 
     def prepare_data(self, dataX, dataY, seq_len=30, pred_len=1):
         """ organize and store dataset for nn model
-            FUTURE: dataX and dataY are aligned, we manually reorganize x and y here, to be revised in future
+            NOTE: assume dataX and dataY are aligned
             Args:
                 dataX (np.array): features, size of (win_len, n_comp)
-                dataY (np.array): labels, size of (win_len,)
+                dataY (np.array): labels, size of (win_len, 1)
                 seq_len (int, optional): sequence length in TCN. Defaults to 30.
                 pred_len (int, optional): num of steps to predict. Defaults to 1.
         """
         win_len, n_comp = dataX.shape
-        dataY = dataY[:, np.newaxis]
         self.n_in = n_comp
         self.n_out = pred_len
 
         # normalize as columns
-        scalarX = MinMaxScaler()
+        scalarX = StandardScaler() # StandardScaler() # MinMaxScaler()
         dataX = scalarX.fit(dataX).transform(dataX)
-        scalarY = MinMaxScaler()
+        scalarY = StandardScaler() # StandardScaler() # MinMaxScaler()
         dataY = scalarY.fit(dataY).transform(dataY)
         self.scalar = scalarY
         
