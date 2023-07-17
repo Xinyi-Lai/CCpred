@@ -1,128 +1,123 @@
-# TODO:!!!!!!
+'''
+Predict with hybrid framework (window + restructure + pred).
+!!! not tested yet !!!
+'''
 
 import pickle
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
+
+from statsmodels.tsa import stattools
+from termcolor import colored
 from tqdm import tqdm
-from utils import HiddenPrints
 
-
-# step1: decompose into subsequences
-from series_restr import decomp_ceemdan, decomp_eemd, decomp_emd, decomp_ewt
-
-# step2: integrate subsequences into hi-freq and lo-freq
-from series_restr import integr_fuzzen_threshold, integr_fine_to_coarse
-
-# step3: high-freq forecast with ARIMA, in sarimax.py
+from utils import *
+from models import *
+from series_restr import *
 from sarimax import forecast_arima
-  
-# step4: low-freq forecast, in hybrid_model.py
-from nn_models import forecast_BPNN, forecast_LSTM, forecast_GRU, forecast_TCN
+
+import random
+import torch
+
+# TODO Fix the random seed to ensure the reproducibility of the experiment
+random_seed = 10
+random.seed(random_seed)
+np.random.seed(random_seed)
+torch.manual_seed(random_seed)
+torch.cuda.manual_seed_all(random_seed)
 
 
-if __name__ == '__main__':
+batch_size = 1
+
+
+# full process
+def pred_full(win_len, restr, hi_pred, lo_pred, seq_len=100, pred_len=10, vis=False, val_num=100):
 
     params = {
-        'win_len': 200,
-        'win_step': 1,
-        'decompose_method': 'ceemdan', # {'ceemdan', 'eemd', 'emd', 'ewt', 'ssa'}
-        'integrate_method': 'fuzzen',
-        'hi_pred_method': 'arima',
-        'lo_pred_method': 'tcn', # {'bpnn', 'lstm', 'gru', 'tcn'}
-        'error_correction': False
+        'win_len': win_len, # {800, 500}
+        'restr': restr, # {'ssa', 'ssa_ex', 'ceemdan', 'ceemdan_ex', 'eemd', 'emd'}
+        'hi_pred': hi_pred, # {'tcn', 'gru', 'lstm', 'bpnn', TODO 'arima'}
+        'lo_pred': lo_pred, # {'tcn', 'gru', 'lstm', 'bpnn'}
+        'seq_len': seq_len,
+        'pred_len': pred_len
     }
-    trail_name = "hb_win%d_sam%d_%s_%s_%s_%s_%s" %(
-        params['win_len'], params['win_step'], params['decompose_method'], params['integrate_method'], 
-        params['hi_pred_method'], params['lo_pred_method'], 'ec' if params['error_correction'] else '')
-    print(trail_name)
+    trail_name = 'fu_win%d_%s_%s_%s' %(win_len, restr, hi_pred, lo_pred)
+    print(colored(trail_name, 'blue'))
+
+
+    model_dict = {
+        'tcn': TCN_model, 'gru': GRU_model, 'lstm': LSTM_model, 'bpnn': BPNN_model # 'arima': forecast_arima,
+    }
+    if lo_pred not in model_dict.keys():
+        print('unrecognized lo_pred_method: '+lo_pred)
+        return
+    if hi_pred not in model_dict.keys():
+        print('unrecognized hi_pred_method: '+hi_pred)
+        return
+    
+    restr_dict = {
+        'ssa': restr_ssa,           'ssa_ex':restr_ssa_ex, 
+        'ceemdan': decomp_ceemdan,  'ceemdan_ex': decomp_ceemdan_ex,
+        'eemd': decomp_eemd,        'eemd_ex': decomp_eemd_ex,
+        'emd': decomp_emd,          'emd_ex': decomp_emd_ex
+    }
+    if restr not in restr_dict.keys():
+        print('unrecognized restr: ' + restr)
+        return
+
 
     # load data
-    df = pd.read_excel('./testdata/CCprice.xlsx', sheet_name='Sheet1')
-    Cprice = np.array(df['C_Price'])[-1500:]
+    df = pd.read_excel('data\df.xlsx', sheet_name='Sheet1')
+    dataY = np.array(df['Cprice'])
+    dataX = np.array(df.iloc[:,1:]) # carbon price at the previous time step is also used as feature
 
-    # slide the window, and predict at each step
-    pred = []
-    real = []
-    errors = []
-    win_len = params['win_len']
-    win_step = params['win_step']
-    for t in tqdm(range(0, len(Cprice)-win_len-1, win_step)): # sample!!!
-        print('\n step: %i' %t, end='')
-        win_x = Cprice[t:t+win_len]
-        win_y = Cprice[t+win_len]
-
-        print(' -> sequences restructuring', end='')
-        if params['decompose_method'] == 'ceemdan':
-            imfs = decomp_ceemdan(win_x)
-        elif params['decompose_method'] == 'eemd':
-            imfs = decomp_eemd(win_x)
-        elif params['decompose_method'] == 'emd':
-            imfs = decomp_emd(win_x)
-        elif params['decompose_method'] == 'ewt':
-            imfs = decomp_ewt(win_x, num_comp=10)
-        elif params['decompose_method'] == 'ssa':
-            imfs = decomp_ssa(win_x, num_comp=10)
-        else:
-            print('unrecognized decompose_method: '+params['decompose_method'])
-            break
-
-        if params['integrate_method'] == 'fuzzen':
-            hi_freq, lo_freq, _ = integr_fuzzen(imfs)
-        else:
-            print('unrecognized integrate_method: '+params['integrate_method'])
-            break
-
-        print(' -> high-freq forecasting', end='')
-        if params['hi_pred_method'] == 'arima':
-            try:
-                with HiddenPrints():
-                    hi_freq_pred, _ = forecast_arima(hi_freq)
-            except Exception as e:
-                hi_freq_pred = np.mean(hi_freq)
-                print('error in hi_pred: ',e.__class__.__name__,e)
-        else:
-            print('unrecognized hi_pred_method: '+params['hi_pred_method'])
-            break
+    # hold results
+    real = np.zeros((val_num, pred_len))
+    pred = np.zeros((val_num, pred_len))
+    # slide the window, decompose and predict at each step, validate for the last (100) steps
+    for ii in tqdm(range(val_num)):
+        t = len(dataY) - win_len - pred_len - val_num + ii
+        win_x = dataX[t:t+win_len, :] # Xvars, (win_len, n_comp)
+        series = dataY[t:t+win_len] # Yvar, (win_len,)
+        real[ii,:] = dataY[t+win_len : t+win_len+pred_len] # target, (pred_len,)
         
-        print(' -> low-freq forecasting', end='')
-        with HiddenPrints():
-            if params['lo_pred_method'] == 'bpnn':
-                lo_freq_pred, _ = forecast_BPNN(lo_freq, trail_name)
-            elif params['lo_pred_method'] == 'lstm':
-                lo_freq_pred, _ = forecast_LSTM(lo_freq, trail_name)
-            elif params['lo_pred_method'] == 'gru':
-                lo_freq_pred, _ = forecast_GRU(lo_freq, trail_name)
-            elif params['lo_pred_method'] == 'tcn':
-                lo_freq_pred, _ = forecast_TCN(lo_freq, trail_name)
-            else:
-                print('unrecognized lo_pred_method: '+params['lo_pred_method'])
-                break
+        # decompose
+        restructured = restr_dict[restr](series)
+        if restr not in ['ssa_ex', 'ssa']:
+            restructured = integr_fuzzen_pwlf(restructured, n_integr=3)
+        
+        # predict
+        # for each subsequence
+        for i in range(restructured.shape[0]):
+            sub_seq = restructured[i].reshape(-1,1)
 
-        error_pred = 0
-        if params['error_correction']:
-            print(' -> error correction ', end='')
-            if len(errors) > 50:
+            # if white noise, return the mean
+            if stattools.q_stat(stattools.acf(sub_seq)[1:11],len(sub_seq))[1][0] > 0.01:
+                sub_pred = np.mean(sub_seq)
+
+            # if stationary, goes to high-freq forecast
+            elif stattools.adfuller(sub_seq)[1] < 0.01:
+                m = model_dict[hi_pred](trail_name+str(i), batch_size)
                 try:
                     with HiddenPrints():
-                        error_pred, _ = forecast_arima(np.array(errors))
-                        # error_pred, _ = forecast_TCN(np.array(errors), 'error_tcn')
+                        sub_pred = m.predict(win_x, sub_seq, seq_len, pred_len)
                 except Exception as e:
-                    error_pred = 0
-                    print('错误明细是',e.__class__.__name__,e)
-            print(error_pred)
-        
-        step_pred = hi_freq_pred + lo_freq_pred + error_pred
-        pred.append(step_pred)
-        real.append(win_y)
-        errors.append(win_y-step_pred)
-        if len(errors) > 100: # throw away errors long time ago
-            del errors[0]
+                    sub_pred = sub_seq[-1] # take the last step as prediction
+                    print('error in hi_pred: ', hi_pred, e.__class__.__name__, e)
+                
+            # if non-stationary, goes to low-freq forecast
+            else:
+                m = model_dict[lo_pred](trail_name+str(i), batch_size)
+                try:
+                    with HiddenPrints():
+                        sub_pred = m.predict(win_x, sub_seq, seq_len, pred_len)
+                except Exception as e:
+                    sub_pred = sub_seq[-1] # take the last step as prediction
+                    print('error in lo_pred: ', lo_pred, e.__class__.__name__, e)
+                    
+            # integrate the subsequence prediction
+            pred[ii,:] += sub_pred.reshape(-1)
 
-        print(' -> predicted %.3f, observed %.3f' %(step_pred, win_y))
-    
-    pred = np.array(pred)
-    real = np.array(real)
 
     # store
     f = open(trail_name+".pkl", "wb")
@@ -130,19 +125,17 @@ if __name__ == '__main__':
     f.close()
 
     # # load
-    # f = open(trail_name+".pkl", "rb")
-    # params, pred, real = pickle.load(f)
+    # f = open("results\\"+trail_name+".pkl", "rb")
+    # _, pred, real = pickle.load(f)
     # f.close()
 
-    # print(pred)
-    # print(real)
+    # performance
+    show_performance(trail_name, pred, real, vis)
 
-    # visualize
-    rmse = np.sqrt(np.mean( np.square(real-pred) ))
-    mape = np.mean(np.abs(real-pred)/real)*100
-    plt.figure()
-    plt.title('%s, RMSE=%.2f, MAPE=%.2f%%' %(trail_name,rmse,mape))
-    plt.plot(pred, label='pred')
-    plt.plot(real, label='real')
-    plt.legend()
-    plt.show()
+    return
+
+
+
+if __name__ == '__main__':
+
+    pred_full(win_len=500, restr='ceemdan', hi_pred='bpnn', lo_pred='tcn')

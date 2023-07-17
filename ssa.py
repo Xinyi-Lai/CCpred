@@ -1,3 +1,8 @@
+'''
+Singular Spectrum Analysis (SSA)
+ref: https://www.kaggle.com/code/jdarcy/introducing-ssa-for-time-series-decomposition
+'''
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd

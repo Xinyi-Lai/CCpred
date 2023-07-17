@@ -1,5 +1,6 @@
 '''
 Predict error series (windowing + restructuring + pred + [error correction]).
+!!! not tested yet !!!
 '''
 # TODO:!!!!!!
 import matplotlib.pyplot as plt

@@ -1,3 +1,4 @@
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import sys
@@ -23,7 +24,6 @@ def cal_mape(y_true, y_pred):
     return np.mean(np.abs((y_true-y_pred)/y_true)) * 100
 
 
-
 # use to block out prints when tuning
 class HiddenPrints:
     def __enter__(self):
@@ -33,3 +33,24 @@ class HiddenPrints:
     def __exit__(self, exc_type, exc_val, exc_tb):
         sys.stdout.close()
         sys.stdout = self._original_stdout
+
+
+def show_performance(trail_name, pred, real, vis):
+    print('performance of %s' %trail_name)
+    for i in range(pred.shape[1]):
+        rmse = cal_rmse(real[:,i], pred[:,i])
+        mape = cal_mape(real[:,i], pred[:,i])
+        print('col %d: RMSE=%.2f, MAPE=%.2f%%' %(i, rmse, mape))
+    if vis:
+        # plot the first, middle, and last columns
+        f, axes = plt.subplots(1,3)
+        f.suptitle('performance of %s' %trail_name)
+        for idx, icol in enumerate([0, pred.shape[1]//2, pred.shape[1]-1]):
+            ax = axes[idx]
+            r = real[:,icol]
+            p = pred[:,icol]
+            ax.plot(r, label='real')
+            ax.plot(p, label='pred')
+            ax.set_title('col%d, RMSE=%.2f, MAPE=%.2f%%' %(icol, cal_rmse(r,p), cal_mape(r,p)))
+            ax.legend()
+        plt.show()
