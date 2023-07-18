@@ -23,7 +23,7 @@ class NN_model(object):
         self.batch_size = batch_size    # support batching
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu") # Use gpu if available
         # assign in prepare_data()
-        self.n_in = None                # number of input features (subsequences)
+        self.n_in = None                # number of input features (subsequences and variables)
         self.n_out = None               # number of output features (prediction steps)
         self.scalar = None              # output scalar (y scalar)
         self.dataset = None             # the whole reorganized dataset
@@ -50,7 +50,7 @@ class NN_model(object):
     
 
     def train_model(self):
-        """ all nn models share the same training process:
+        """ all nn models share the same training process: (except for seq2seq)
             1. split the dataset into training set and validation set
             2. load pretrained model and define loss, optimizer, early-stopping, etc.
             3. iterate through epochs, training and validating
@@ -65,8 +65,11 @@ class NN_model(object):
         
         # warm start if applicable
         model_path = os.path.join('saved_model', self.model_name, 'best_model.pth')
-        if os.path.exists(model_path):
-            self.model.load_state_dict(torch.load(model_path))
+        try:
+            if os.path.exists(model_path):
+                self.model.load_state_dict(torch.load(model_path))
+        except Exception as e:
+            print('error in warm start: ',e.__class__.__name__,e)
         
         # define loss and optimizer
         loss_func = torch.nn.MSELoss()
@@ -110,7 +113,7 @@ class NN_model(object):
 
 
     def get_forecast(self):
-        """ all nn models share the same forecasting process:
+        """ all nn models share the same forecasting process: (except for seq2seq)
             1. get forecast results from last seq
             2. reshape and scale
         """

@@ -158,6 +158,8 @@ sg_win500_seq100_bpnn
 col 0: RMSE=12.29, MAPE=12.13%  col 1: RMSE=12.67, MAPE=12.15%  col 2: RMSE=12.47, MAPE=11.47%  col 3: RMSE=14.67, MAPE=13.29%  col 4: RMSE=16.41, MAPE=14.93%  col 5: RMSE=16.67, MAPE=15.05%  col 6: RMSE=16.46, MAPE=16.38%  col 7: RMSE=15.37, MAPE=15.19%  col 8: RMSE=17.14, MAPE=17.54%  col 9: RMSE=19.57, MAPE=20.41%
 
 
+hb_win500_ssa_ex_seq2seq_seq2seq
+col 0: RMSE=4.28, MAPE=4.06%    col 1: RMSE=4.80, MAPE=4.56%    col 2: RMSE=5.07, MAPE=4.87%    col 3: RMSE=5.42, MAPE=5.35%    col 4: RMSE=5.78, MAPE=5.54%    col 5: RMSE=6.11, MAPE=5.87%    col 6: RMSE=6.64, MAPE=6.15%    col 7: RMSE=7.21, MAPE=6.77%    col 8: RMSE=7.89, MAPE=7.53%    col 9: RMSE=8.08, MAPE=7.83%
 
 hb_win500_ssa_ex_bpnn_tcn
 col 0: RMSE=4.85, MAPE=4.19%    col 1: RMSE=4.86, MAPE=4.28%    col 2: RMSE=5.57, MAPE=4.91%    col 3: RMSE=5.04, MAPE=4.49%    col 4: RMSE=5.58, MAPE=5.14%    col 5: RMSE=6.17, MAPE=5.71%    col 6: RMSE=6.60, MAPE=5.79%    col 7: RMSE=7.43, MAPE=5.93%    col 8: RMSE=8.61, MAPE=6.80%    col 9: RMSE=10.38, MAPE=8.57%

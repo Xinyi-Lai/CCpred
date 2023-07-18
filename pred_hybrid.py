@@ -43,7 +43,7 @@ def pred_hybrid(win_len, restr, hi_pred, lo_pred, seq_len=100, pred_len=10, vis=
 
 
     model_dict = {
-        'tcn': TCN_model, 'gru': GRU_model, 'lstm': LSTM_model, 'bpnn': BPNN_model # 'arima': forecast_arima,
+        'seq2seq': Seq2Seq_model, 'tcn': TCN_model, 'gru': GRU_model, 'lstm': LSTM_model, 'bpnn': BPNN_model # 'arima': forecast_arima,
     }
     if lo_pred not in model_dict.keys():
         print('unrecognized lo_pred_method: '+lo_pred)

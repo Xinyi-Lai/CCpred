@@ -23,16 +23,16 @@ torch.manual_seed(random_seed)
 torch.cuda.manual_seed_all(random_seed)
 
 
-batch_size = 4
+batch_size = 1
 
 
-# test refactored nn models
+# test nn models
 def pred_step(win_len, t):
     df = pd.read_excel('data\df.xlsx', sheet_name='Sheet1')
     dataY = np.array(df['Cprice'])
     dataX = np.array(df.iloc[:,1:]) # carbon price at the previous time step is also used as feature
 
-    dataY = dataY[t:t+win_len, np.newaxis] # (win_len, 1)
+    dataY = dataY[t:t+win_len, np.newaxis] # (win_len, 1), instead of (win_len,)
     dataX = dataX[t:t+win_len, :] # (win_len, n_comp)
 
     # m1 = TCN_model('step-TCN', batch_size)
@@ -45,7 +45,9 @@ def pred_step(win_len, t):
     #     print(pred)
     #     m.vis_performance(True)
     
-    m = Seq2Seq_model('step-Seq2Seq', batch_size)
+    # m = TCN_model('step-TCN', batch_size)
+    # m = Seq2Seq_model('step-Seq2Seq', batch_size)
+    m = Seq2SeqPlus_model('step-Seq2SeqPlus', batch_size)
     pred = m.predict(dataX, dataY, seq_len=100, pred_len=10)
     m.vis_performance(True)
 
@@ -59,7 +61,7 @@ def pred_single(win_len, seq_len, method, pred_len=10, vis=False, val_num=100):
     trail_name = "sg_win%d_seq%d_%s" %(win_len, seq_len, method)
     print(colored(trail_name, 'blue'))
 
-    method_dict = { 'tcn': TCN_model, 'gru': GRU_model, 'lstm': LSTM_model, 'bpnn': BPNN_model }
+    method_dict = { 'seq2seq+': Seq2SeqPlus_model, 'seq2seq': Seq2Seq_model, 'tcn': TCN_model, 'gru': GRU_model, 'lstm': LSTM_model, 'bpnn': BPNN_model }
     if method not in method_dict.keys():
         print('unrecognized method: ' + method)
         return
@@ -108,7 +110,7 @@ if __name__ == '__main__':
     # seq_len = [200, 100]
     # methods = ['tcn', 'gru', 'lstm', 'bpnn']
 
-    # pred_single(win_len=800, seq_len=100, method='gru', vis=True, val_num=20)
+    # pred_single(win_len=500, seq_len=100, method='seq2seq+', vis=True, val_num=10)
 
-    # for i in ['tcn', 'gru', 'lstm', 'bpnn']:
+    # for i in ['seq2seq', 'tcn', 'gru', 'lstm', 'bpnn']:
     #     pred_single(win_len=500, seq_len=100, method=i, vis=True)
