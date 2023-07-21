@@ -47,7 +47,8 @@ def pred_step(win_len, t):
     
     # m = TCN_model('step-TCN', batch_size)
     # m = Seq2Seq_model('step-Seq2Seq', batch_size)
-    m = Seq2SeqPlus_model('step-Seq2SeqPlus', batch_size)
+    # m = Seq2SeqPlus_model('step-Seq2SeqPlus', batch_size)
+    m = Seq2SeqAtt_model('step-Seq2SeqAtt', batch_size)
     pred = m.predict(dataX, dataY, seq_len=100, pred_len=10)
     m.vis_performance(True)
 

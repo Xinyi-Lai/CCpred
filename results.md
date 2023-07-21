@@ -145,6 +145,21 @@ last 1000 samples
 
 # 0716
 
+performance of sg_win500_seq100_seq2seq
+col 0: RMSE=4.29, MAPE=4.13%    col 1: RMSE=4.53, MAPE=4.31%    col 2: RMSE=4.87, MAPE=4.65%    col 3: RMSE=4.96, MAPE=4.68%    col 6: RMSE=6.20, MAPE=5.73%    col 7: RMSE=6.40, MAPE=5.71%    col 8: RMSE=6.94, MAPE=6.22%    col 9: RMSE=7.05, MAPE=6.28%
+
+performance of sg_win500_seq100_seq2seq
+col 0: RMSE=3.87, MAPE=3.26%
+col 1: RMSE=4.20, MAPE=3.63%
+col 2: RMSE=4.33, MAPE=3.70%
+col 3: RMSE=4.46, MAPE=3.88%
+col 4: RMSE=4.93, MAPE=4.18%
+col 5: RMSE=5.55, MAPE=4.70%
+col 6: RMSE=6.06, MAPE=5.09%
+col 7: RMSE=6.05, MAPE=5.18%
+col 8: RMSE=6.49, MAPE=5.32%
+col 9: RMSE=6.67, MAPE=5.29%
+
 sg_win500_seq100_tcn
 col 0: RMSE=5.10, MAPE=4.91%    col 1: RMSE=4.95, MAPE=4.77%    col 2: RMSE=5.28, MAPE=4.96%    col 3: RMSE=6.09, MAPE=5.66%    col 4: RMSE=7.00, MAPE=6.51%    col 5: RMSE=7.80, MAPE=6.98%    col 6: RMSE=8.72, MAPE=7.75%    col 7: RMSE=9.51, MAPE=8.29%    col 8: RMSE=10.11, MAPE=8.79%   col 9: RMSE=10.40, MAPE=8.79%
 
@@ -160,6 +175,9 @@ col 0: RMSE=12.29, MAPE=12.13%  col 1: RMSE=12.67, MAPE=12.15%  col 2: RMSE=12.4
 
 hb_win500_ssa_ex_seq2seq_seq2seq
 col 0: RMSE=4.28, MAPE=4.06%    col 1: RMSE=4.80, MAPE=4.56%    col 2: RMSE=5.07, MAPE=4.87%    col 3: RMSE=5.42, MAPE=5.35%    col 4: RMSE=5.78, MAPE=5.54%    col 5: RMSE=6.11, MAPE=5.87%    col 6: RMSE=6.64, MAPE=6.15%    col 7: RMSE=7.21, MAPE=6.77%    col 8: RMSE=7.89, MAPE=7.53%    col 9: RMSE=8.08, MAPE=7.83%
+
+hb_win500_ssa_seq2seq_seq2seq
+col 0: RMSE=5.88, MAPE=5.72%    col 1: RMSE=6.53, MAPE=6.47%    col 2: RMSE=7.08, MAPE=6.96%    col 3: RMSE=7.50, MAPE=7.41%    col 4: RMSE=7.70, MAPE=7.63%    col 5: RMSE=7.83, MAPE=7.73%    col 6: RMSE=7.85, MAPE=7.70%    col 7: RMSE=7.99, MAPE=7.78%    col 8: RMSE=8.13, MAPE=8.03%    col 9: RMSE=7.95, MAPE=7.78%
 
 hb_win500_ssa_ex_bpnn_tcn
 col 0: RMSE=4.85, MAPE=4.19%    col 1: RMSE=4.86, MAPE=4.28%    col 2: RMSE=5.57, MAPE=4.91%    col 3: RMSE=5.04, MAPE=4.49%    col 4: RMSE=5.58, MAPE=5.14%    col 5: RMSE=6.17, MAPE=5.71%    col 6: RMSE=6.60, MAPE=5.79%    col 7: RMSE=7.43, MAPE=5.93%    col 8: RMSE=8.61, MAPE=6.80%    col 9: RMSE=10.38, MAPE=8.57%

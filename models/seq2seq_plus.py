@@ -107,20 +107,9 @@ class Seq2SeqPlus_model(Seq2Seq_model):
     def __init__(self, model_name='Seq2SeqPlus', batch_size=1) -> None:
         super().__init__(model_name, batch_size)
 
-
-    def prepare_data(self, dataX, dataY, seq_len=30, pred_len=1):
-        return super().prepare_data(dataX, dataY, seq_len, pred_len)
-
-
     def init_model(self, embedding_size=32, hidden_size=64):
         self.model = Seq2SeqPlus(self.n_in_feat, 1, self.device, embedding_size, hidden_size).to(self.device)
         return
 
-    def train_model(self):
-        return super().train_model()
-
-    def get_forecast(self):
-        return super().get_forecast()
-
-    def vis_performance(self, plot=False):
-        return super().vis_performance(plot)
+    # the following methods are inherited from Seq2Seq_model:
+    # prepare_data, train_model, get_forecast, vis_performance
