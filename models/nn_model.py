@@ -132,8 +132,8 @@ class NN_model(object):
         return self.pred
 
 
-    def vis_performance(self, plot=False):
-        """ visualize model fitting performance, use the whole dataset
+    def apply_model(self, plot=False):
+        """ apply model on the whole dataset, visualize model fitting performance 
             metrics (rmse and mape) of each columns are printed, the first 4 rows are plotted
         """
         Dtr = DataLoader(MyDataset(self.dataset), batch_size=self.batch_size)
@@ -148,26 +148,20 @@ class NN_model(object):
         pred = self.scalar.inverse_transform(np.array(pred))
         real = self.scalar.inverse_transform(np.array(real))
 
-        # print rmse and mape for each column
-        print('fitting performance of %s' %self.model_name)
-        for i in range(pred.shape[1]):
-            rmse = cal_rmse(real[:,i], pred[:,i])
-            mape = cal_mape(real[:,i], pred[:,i])
-            print('the %ith output, RMSE=%.2f, MAPE=%.2f%%' %(i, rmse, mape))
-        if plot:
-            # plot the first, middle, and last columns
-            f, axes = plt.subplots(1,3)
-            f.suptitle('fitting performance of %s' %self.model_name)
-            for idx, icol in enumerate([0, pred.shape[1]//2, pred.shape[1]-1]):
-                ax = axes[idx]
-                r = real[:,icol]
-                p = pred[:,icol]
-                ax.plot(r, label='real')
-                ax.plot(p, label='pred')
-                ax.set_title('col%d, RMSE=%.2f, MAPE=%.2f%%' %(icol, cal_rmse(r,p), cal_mape(r,p)))
-                ax.legend()
-            plt.show()
-        return    
+        show_performance(self.model_name, pred, real, plot)
+        return pred, real
+
+
+    def load_model(self, model_name):
+        model_path = os.path.join('saved_model', model_name, 'best_model.pth')
+        try:
+            if os.path.exists(model_path):
+                self.model.load_state_dict(torch.load(model_path))
+        except Exception as e:
+            print('error in loading model: ',e.__class__.__name__,e)
+
+        print('model %s loaded from file' %model_name)
+        return
 
 
 

@@ -143,6 +143,6 @@ class TCN_model(NN_model):
         return
 
 
-    def init_model(self, n_channels=[10,25,10]):
+    def init_model(self, n_channels=[16,32,16]):
         self.model = TemporalConvNet(num_inputs=self.n_in, num_channels=n_channels, num_outputs=self.n_out).to(self.device)
         return
