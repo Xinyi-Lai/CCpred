@@ -5,22 +5,26 @@ import sys
 
 # root mean square error
 def cal_rmse(y_true, y_pred):
-    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    y_true, y_pred = np.array(y_true).reshape(-1), np.array(y_pred).reshape(-1)
+    assert y_true.shape == y_pred.shape, 'shapes do not match'
     return np.sqrt(np.mean(np.square(y_true-y_pred)))
 
 # mean square error
 def cal_mse(y_true, y_pred):
-    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    y_true, y_pred = np.array(y_true).reshape(-1), np.array(y_pred).reshape(-1)
+    assert y_true.shape == y_pred.shape, 'shapes do not match'
     return np.mean(np.square(y_true-y_pred))
 
 # mean absolute error
 def cal_mae(y_true, y_pred):
-    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    y_true, y_pred = np.array(y_true).reshape(-1), np.array(y_pred).reshape(-1)
+    assert y_true.shape == y_pred.shape, 'shapes do not match'
     return np.mean(np.abs(y_true-y_pred))
 
 # mean absolute percent error
 def cal_mape(y_true, y_pred):
-    y_true, y_pred = np.array(y_true), np.array(y_pred)
+    y_true, y_pred = np.array(y_true).reshape(-1), np.array(y_pred).reshape(-1)
+    assert y_true.shape == y_pred.shape, 'shapes do not match'
     return np.mean(np.abs((y_true-y_pred)/y_true)) * 100
 
 

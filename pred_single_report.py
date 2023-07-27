@@ -188,4 +188,8 @@ if __name__ == '__main__':
     #     pred_single(win_len=500, seq_len=100, method=i, vis=True)
 
 
-    pred_nowin_single(100, 'seq2seqplus', pred_len=10, vis=True)
+    # pred_nowin_single(100, 'seq2seqplus', pred_len=10, vis=True)
+    
+    from sarimax import forecast_arima
+    
+    
