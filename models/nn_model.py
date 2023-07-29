@@ -55,10 +55,10 @@ class NN_model(object):
             2. load pretrained model and define loss, optimizer, early-stopping, etc.
             3. iterate through epochs, training and validating
         """
-        # # split training and testing sets without shuffling
-        # # Dte, Dtr = MyDataset(Dtr[int(len(Dtr)*0.8):]), MyDataset(Dtr[:int(len(Dtr)*0.8)])
-        # split datasets with shuffling (sequences are independent, so it's ok to shuffle)
         split = int(len(self.dataset)*0.8)
+        # # split training and testing sets without shuffling
+        # Dtr, Dte = self.dataset[:split], self.dataset[split:]
+        # split datasets with shuffling (sequences are independent, so it's ok to shuffle)
         Dtr, Dte = random_split(self.dataset, [split, len(self.dataset)-split])
         Dtr = DataLoader(MyDataset(Dtr), batch_size=self.batch_size)
         Dte = DataLoader(MyDataset(Dte), batch_size=self.batch_size)
@@ -73,7 +73,7 @@ class NN_model(object):
         
         # define loss and optimizer
         loss_func = torch.nn.MSELoss()
-        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.001)
+        optimizer = torch.optim.Adam(self.model.parameters(), lr=0.005)
         # initialize an early-stopping instance
         model_dir = os.path.join('saved_model', self.model_name)
         early_stopping = EarlyStopping(model_dir)

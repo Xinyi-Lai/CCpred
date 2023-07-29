@@ -109,7 +109,7 @@ def sweepSARIMAX(endog, order, seasonal_order=None, exog=None):
 
 
 
-def bestSARIMAX(aic_mat, bic_mat, cri, th=0.2):
+def bestSARIMAX(aic_mat, bic_mat, cri, th=0.5):
     """ determine the best param for SARIMAX model
         Args:
             aic_mat (np.array): the matrix that stores AIC.
@@ -244,11 +244,10 @@ def forecast_arima(series, pred_len=1):
     # #     d -= 1
     # #     series = np.concatenate(([heads[d]], series)).cumsum()
     
-    # # sanity check: if the predicted results is unbounded, return the mean
-    # pred = series[-1]
-    # if np.abs( pred - np.mean(orig) ) > 3 * np.std(orig):
-    #     pred = np.mean(orig)
-
+    # sanity check: if the predicted results is unbounded, return the last observed value
+    for i in range(len(pred)):
+        if np.abs( pred[i] - series[-1] ) > 1 * np.std(series):
+            pred[i] = series[-1]
     return pred, model
 
 

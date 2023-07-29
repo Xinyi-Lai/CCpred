@@ -140,16 +140,16 @@ def integr_fuzzen_pwlf(imfs, n_integr=2):
                 # print(i,j)
                 break
     
-    # # plot piecewise linear fit result
-    # plt.figure(figsize=(12,4))
-    # xHat = np.linspace(min(x), max(x), num=10000)
-    # yHat = my_pwlf.predict(xHat)
-    # plt.stem(fuzzyEns)
-    # plt.plot(x, fuzzyEns, '.', label='FuzzyEn scatter')
-    # plt.plot(xHat, yHat, '-', label='piecewise linear fit')
-    # for i in range(1,len(res)-1):
-    #     plt.axvline(x=res[i], c='g', linestyle='--')
-    # plt.legend()
+    # plot piecewise linear fit result
+    plt.figure(figsize=(12,4))
+    xHat = np.linspace(min(x), max(x), num=10000)
+    yHat = my_pwlf.predict(xHat)
+    plt.stem(fuzzyEns)
+    plt.plot(x, fuzzyEns, '.', label='FuzzyEn scatter')
+    plt.plot(xHat, yHat, '-', label='piecewise linear fit')
+    for i in range(1,len(res)-1):
+        plt.axvline(x=res[i], c='g', linestyle='--')
+    plt.legend()
 
     return reconstr
 
