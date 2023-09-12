@@ -1,15 +1,24 @@
 '''
-Generate dataset for carbon credit price prediction from various sources
-    1. carbon credit price data, 2017-2023, from EEX.com
-    2. electricity price data, 2015-2023, from ember-climate.org
-    3. other explanatory data, 2018-2023, from Yahoo Finance
+Generate dataset for carbon credit price prediction
+    1. EU-ETS
+    2. CHN-ETS
 '''
 
 import pandas as pd
 import matplotlib.pyplot as plt
 
-# prepare Cprice data from several source files
-def prepare_Cprice(rootdir='data/source/'):
+
+
+''' EU-ETS 
+    Generate dataset for carbon credit price prediction from various sources
+    1. carbon credit price data, 2017-2023, from EEX.com
+    2. electricity price data, 2015-2023, from ember-climate.org
+    3. other explanatory data, 2018-2023, from Yahoo Finance
+'''
+
+# prepare EU Cprice data from several source files
+def prepare_Cprice_EU():
+    rootdir='data/source/EU/EEX/'
     df_Cprice = pd.DataFrame()
     for i in range(2023,2016,-1):
         filename = 'emission-spot-primary-market-auction-report-{}-data.xlsx'.format(i)
@@ -29,25 +38,27 @@ def prepare_Cprice(rootdir='data/source/'):
     df_Cprice.loc[:,'Date'] = pd.to_datetime(df_Cprice['Date'])
     df_Cprice.rename(columns={'Auction Price €/tCO2':'Cprice', 'Minimum Bid €/tCO2':'Cprice_min','Maximum Bid €/tCO2':'Cprice_max','Mean €/tCO2':'Cprice_mean','Median €/tCO2':'Cprice_median'}, inplace=True)
     df_Cprice = df_Cprice.loc[:,['Date', 'Cprice']] # take the "auction price", FIXME or take the "mean price"?
-    # df_Cprice.sort_values(by='Date', ascending=False, inplace=True)
-    # df_Cprice = df_Cprice.reset_index(drop=True)
+    df_Cprice.sort_values(by='Date', ascending=False, inplace=True)
+    # df_Cprice.to_excel(rootdir+'0Cprice.xlsx', index=False)
     return df_Cprice
 
 
-# prepare Eprice data from source file, take the average of different countries
-def prepare_Eprice(rootdir='data/source/'):
+# prepare EU Eprice data from source file, take the average of different countries
+def prepare_Eprice_EU():
+    rootdir='data/source/EU/'
     filename = 'european_wholesale_electricity_price_data_daily-5.csv'
     df_Eprice = pd.read_csv(rootdir+filename)
     df_Eprice = df_Eprice.groupby(by=['Date']).mean().reset_index()
     df_Eprice.loc[:,'Date'] = pd.to_datetime(df_Eprice['Date'])
     df_Eprice.rename(columns={'Price (EUR/MWhe)':'Eprice'}, inplace=True)
-    # df_Eprice.sort_values(by='Date', ascending=False, inplace=True)
+    df_Eprice.sort_values(by='Date', ascending=False, inplace=True)
+    df_Eprice.to_excel(rootdir+'0Eprice.xlsx', index=False)
     return df_Eprice
 
 
 # prepare explanatory data from source file
-def prepare_Xvar(rootdir='data/source/'):
-    rootdir = rootdir + 'Xvar/'
+def prepare_Xvar_EU():
+    rootdir='data/source/EU/Xvar/'
     filedict = {
         'Brent Crude Oil Last Day Financ (BZ=F).xlsx': 'BrentOil',
         'Crude Oil Aug 23 (CL=F).xlsx': 'CrudeOilF',
@@ -66,16 +77,16 @@ def prepare_Xvar(rootdir='data/source/'):
         df.rename(columns={'Close_':colname}, inplace=True)
         dfX = pd.merge(dfX, df, on='Date', how='outer')
     dfX['Date'] = pd.to_datetime(dfX['Date'])
-    # dfX.sort_values(by='Date', ascending=False, inplace=True)
-    # dfX.to_excel(rootdir+'Xvar.xlsx', index=False)
+    dfX.sort_values(by='Date', ascending=False, inplace=True)
+    dfX.to_excel(rootdir+'0Xvar.xlsx', index=False)
     return dfX
 
 
-# merge all data: Cprice, Eprice, Xvar
-def prepare_all(rootdir='data/source/'):
-    df_Cprice = prepare_Cprice(rootdir)
-    df_Eprice = prepare_Eprice(rootdir)
-    dfX = prepare_Xvar(rootdir)
+# merge EU data: Cprice, Eprice, Xvar
+def prepare_all_EU():
+    df_Cprice = prepare_Cprice_EU()
+    df_Eprice = prepare_Eprice_EU()
+    dfX = prepare_Xvar_EU()
 
     df = pd.merge(left=df_Cprice, right=df_Eprice, how='left', on='Date', sort=False)
     df = pd.merge(left=df, right=dfX, how='left', on='Date', sort=False)
@@ -139,15 +150,18 @@ def prepare_chn_market(rootdir='data/source/'):
 
 
 if __name__ == '__main__':
-
-    rootdir='data/source/'
+    
+    # # df_Cprice = prepare_Cprice_EU()
+    # # df_Cprice.to_excel('data/source/EU/EEX.xlsx', index=False)
+    # # dfX = prepare_Xvar_EU()
+    # dfX.to_excel('data/source/EU/dfX.xlsx', index=False)
     
     # ### df_eu
-    # df = prepare_all(rootdir)
+    # # read, clean, merge, interpolate, plot
+    df = prepare_all_EU()
     # df.to_excel('data/df_eu.xlsx', index=False)
     # print(df.info())
     # print(df.head())
-
     # # normalize to make the plot more readable
     # df_norm = df.set_index('Date')
     # df_norm = (df_norm - df_norm.mean()) / df_norm.std()
@@ -155,8 +169,11 @@ if __name__ == '__main__':
     # df_norm.Cprice.plot(color='black', label='Cprice', legend=True)
     # plt.show()
     
-    ### df_chn
-    df_chn = prepare_chn_market(rootdir)
-    df_chn.to_excel('data/df_chn1.xlsx', index=False)
-    print(df_chn.info())
-    print(df_chn.head())
+    # # TODO:
+    # rootdir='data/source/'
+        
+    # ### df_chn
+    # df_chn = prepare_chn_market(rootdir)
+    # df_chn.to_excel('data/df_chn1.xlsx', index=False)
+    # print(df_chn.info())
+    # print(df_chn.head())
