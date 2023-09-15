@@ -110,7 +110,7 @@ def prepare_chn_market(rootdir='data/source/'):
     rootdir = rootdir + 'chn/'
     
     # read data of domestic markets
-    filename = '国内各碳市场数据-每日行情.xlsx'
+    filename = '碳排放权交易-每日行情.xlsx'
     df = pd.read_excel(rootdir+filename, na_values='-')
     df['交易日期'] = pd.to_datetime(df['交易日期'])
 
@@ -149,6 +149,101 @@ def prepare_chn_market(rootdir='data/source/'):
     return df_chn
 
 
+def prepare_chn(save=True):
+    rootdir = 'data/source/chn/'
+    
+    ### CHN markets
+    cities = {
+        'Guangzhou': '广州',
+        'Hubei': '湖北',
+        'Shanghai': '上海',
+        'Beijing': '北京',
+        'Fujian': '福建',
+        'Chongqing': '重庆',
+        # 'Tianjin': '天津', # 太多交易品种
+        # 'Shenzhen': '深圳' # 太多交易品种
+    }
+    df_chn = pd.DataFrame(columns=['Date'])
+    for city in cities.keys():
+        df0 = pd.read_excel(rootdir+'碳排放权交易-每日行情.xlsx', sheet_name=cities[city], na_values='-')
+        df0 = df0[['交易日期', '成交均价']]
+        df0.dropna(inplace=True)
+        df0.rename(columns={'交易日期':'Date', '成交均价':city}, inplace=True)
+        df0['Date'] = pd.to_datetime(df0['Date'])
+        df_chn = pd.merge(df_chn, df0, how='outer', on='Date', sort=True)
+    df_chn = df_chn.sort_values(by='Date').reset_index(drop=True)
+    vis(df_chn)
+    # print(df_chn.info())
+    # print(df_chn)
+    # print(df_chn[df_chn['Date'].duplicated()])
+
+    ### X Vars
+    Xvars = {
+        'EU-CC': '欧洲碳排放期货历史数据.csv',
+        'WTI-Oil': 'WTI原油期货历史数据.csv',
+        'Brent-Oil': '伦敦布伦特原油期货历史数据.csv',
+        'Zhengzhou-Coal': '动力煤期货历史数据.csv',
+        'Dalian-Coal': '焦煤期货历史数据.csv',
+        'Rtd-Coal': 'Rotterdam Coal Futures历史数据.csv',
+        'US-NatGas': '美国天然气期货历史数据.csv',
+        # 'TTF-NatGas': 'Dutch TTF Natural Gas Futures历史数据.csv',
+        'SH-FOil': '上海燃料油期货历史数据.csv',
+        'US-FOil': '美国燃料油期货历史数据.csv',
+        'CSI300': '沪深300指数历史数据.csv',
+        'US-DJI': '道琼斯工业平均指数历史数据.csv',
+        'USD-CNY': 'USD_CNY历史数据.csv',
+    }
+    dfX = pd.DataFrame(columns=['Date'])
+    for xvar in Xvars.keys():
+        df0 = pd.read_csv(rootdir + 'Xvar/' + Xvars[xvar])
+        df0 = df0[['日期', '收盘']]
+        df0.dropna(inplace=True)
+        if df0['收盘'].dtype != 'float64': # if dtype=object, mainly because there is ',' as thousand separator# if dtype=object, mainly because there is ',' as thousand separator
+            df0['收盘'] = df0['收盘'].str.replace(',','').astype(float)
+        df0.rename(columns={'日期':'Date', '收盘':xvar}, inplace=True)
+        df0['Date'] = pd.to_datetime(df0['Date'])
+        dfX = pd.merge(dfX, df0, how='outer', on='Date', sort=True)
+    dfX = dfX.sort_values(by='Date').reset_index(drop=True)
+    vis(df_chn)
+    # print(dfX.info())
+    # print(dfX)
+
+    ### df_all: join CCprices and Xvars
+    df_all = pd.merge(df_chn, dfX, how='left', on='Date', sort=True)
+    df_all = df_all.sort_values(by='Date').reset_index(drop=True)
+    vis(df_all)
+    # print(df_all.info())
+    # print(df_all)
+
+    ### df_itpl: interpolate missing values
+    df_itpl = df_all.copy()
+    for col in df_itpl.columns[1:]:
+        df_itpl[col] = df_itpl[col].interpolate(method='linear', axis=0)
+    vis(df_itpl)
+    # print(df_itpl.info())
+    # print(df_itpl)
+
+    ### save to excel
+    if save:
+        writer = pd.ExcelWriter('data/df_chn_new.xlsx')
+        df_chn.to_excel(writer,'chn-markets')
+        dfX.to_excel(writer,'Xvars')
+        df_all.to_excel(writer,'df-chn')
+        df_itpl.to_excel(writer,'df-chn-itpl')
+        writer.save()
+    
+    return df_itpl
+
+
+def vis(df):
+    df_norm = df.set_index('Date')
+    df_norm = (df_norm - df_norm.mean()) / df_norm.std()
+    df_norm.iloc[:,1:].plot(figsize=(12,8), x_compat=True, alpha=0.6)
+    # df_norm.Cprice.plot(color='black', label='Cprice', legend=True)
+    plt.show()
+    return
+
+
 if __name__ == '__main__':
     
     # # df_Cprice = prepare_Cprice_EU()
@@ -158,7 +253,7 @@ if __name__ == '__main__':
     
     # ### df_eu
     # # read, clean, merge, interpolate, plot
-    df = prepare_all_EU()
+    # df = prepare_all_EU()
     # df.to_excel('data/df_eu.xlsx', index=False)
     # print(df.info())
     # print(df.head())
@@ -177,3 +272,8 @@ if __name__ == '__main__':
     # df_chn.to_excel('data/df_chn1.xlsx', index=False)
     # print(df_chn.info())
     # print(df_chn.head())
+
+
+    # df_chn: read, clean, merge, interpolate
+    df_chn = prepare_chn(save=False)
+    vis(df_chn)

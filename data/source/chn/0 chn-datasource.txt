@@ -1,0 +1,77 @@
+
+>>> CHN Price 2016-2023 <<<
+碳排放权交易-每日行情.xlsx
+https://ets.sceex.com.cn/internal.htm?k=guo_nei_xing_qing&url=mrhq_gn&orderby=tradeTime%20desc&pageSize=14
+20160701 - 20230724
+
+
+
+[[[ X Var from investing.com ]]]
+20160701 - 20230816
+
+EU-CC
+欧洲碳排放期货历史数据.csv
+https://cn.investing.com/commodities/carbon-emissions-historical-data
+
+// WTI原油现货_USD历史数据.csv
+// https://cn.investing.com/currencies/wti-usd-historical-data
+WTI-Oil
+WTI原油期货历史数据.csv
+https://cn.investing.com/commodities/crude-oil-historical-data
+// Brent-Oil
+// 伦敦布伦特原油期货历史数据.csv
+// https://cn.investing.com/commodities/brent-oil-historical-data
+
+Zhengzhou-Coal
+动力煤期货历史数据.csv
+https://cn.investing.com/commodities/zce-thermal-coal-futures-historical-data
+Dalian-Coal
+焦煤期货历史数据.csv
+https://cn.investing.com/commodities/coking-coal-futures-historical-data
+Rtd-Coal
+Rotterdam Coal Futures历史数据.csv
+https://cn.investing.com/commodities/rotterdam-coal-futures-historical-data
+
+US-NatGas
+美国天然气期货历史数据.csv
+https://cn.investing.com/commodities/natural-gas-historical-data
+TTF-NatGas
+Dutch TTF Natural Gas Futures历史数据.csv
+https://cn.investing.com/commodities/dutch-ttf-gas-c1-futures-historical-data
+
+SH-FOil
+上海燃料油期货历史数据.csv
+https://cn.investing.com/commodities/shfe-fuel-oil-futures-historical-data
+US-FOil
+美国燃料油期货历史数据.csv
+https://cn.investing.com/commodities/heating-oil-historical-data
+
+CSI300
+沪深300指数历史数据.csv
+https://cn.investing.com/indices/csi300-historical-data
+富时中国A50指数历史数据.csv
+https://cn.investing.com/indices/ftse-china-a50-historical-data
+富时中国A600行业指数 - 石油和天然气历史数据.csv
+https://cn.investing.com/indices/ftse-china-a-600-oil---gas-historical-data
+富时中国A600行业指数 - 电力历史数据
+https://cn.investing.com/indices/ftse-china-electricity-historical-data
+
+US-DJI
+道琼斯工业平均指数历史数据.csv
+https://cn.investing.com/indices/us-30-historical-data
+美国标准普尔500指数历史数据.csv
+https://cn.investing.com/indices/us-spx-500-historical-data
+
+USD-CNY
+USD_CNY历史数据.csv
+https://cn.investing.com/currencies/usd-cny-historical-data
+EUR_CNY历史数据.csv
+https://cn.investing.com/currencies/eur-cny-historical-data
+
+
+
+中国银行贷款基础利率LPR1.xlsx
+https://www.bankofchina.com/fimarkets/lilv/fd32/201310/t20131031_2591219.html
+中国银行贷款基础利率LPR2.xlsx
+https://www.bankofchina.com/fimarkets/lilv/fd32/201310/t20131028_2578984.html
+
