@@ -8,58 +8,38 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-
 ''' EU-ETS 
     Generate dataset for carbon credit price prediction from various sources
-    1. carbon credit price data, 2017-2023, from EEX.com
-    2. electricity price data, 2015-2023, from ember-climate.org
-    3. other explanatory data, 2018-2023, from Yahoo Finance
+    1. carbon credit price data, 20170109-20230707, from EEX.com
+    2. electricity price data, 20150101-20230531, from ember-climate.org
+    3. other explanatory data, 20180709-20230707, from Yahoo Finance
 '''
+def prepare_eu(save=False, vis=False):
+    rootdir='data/source/EU/'
 
-# prepare EU Cprice data from several source files
-def prepare_Cprice_EU():
-    rootdir='data/source/EU/EEX/'
+    ### prepare EU Cprice data from several source files
     df_Cprice = pd.DataFrame()
     for i in range(2023,2016,-1):
         filename = 'emission-spot-primary-market-auction-report-{}-data.xlsx'.format(i)
-        df = pd.read_excel(rootdir+filename)
+        df = pd.read_excel(rootdir+'EEX/'+filename)
         df.columns = df.iloc[4]
         df = df.loc[:,['Date','Auction Price €/tCO2','Minimum Bid €/tCO2','Maximum Bid €/tCO2','Mean €/tCO2','Median €/tCO2']].drop(index=df.index[0:5])
         df_Cprice = df_Cprice.append(df)
-    # # # we won't use the data a long time ago
-    # # for i in range(2016,2012,-1):
-    # #     filename = 'emission-spot-primary-market-auction-report-{}-data.xlsx'.format(i)
-    # #     df = pd.read_excel(rootdir+filename)
-    # #     df.columns = df.iloc[1]
-    # #     if i == 2016:
-    # #         df.rename(columns={'Auction Price EUR/tCO2':'Auction Price €/tCO2', 'Minimum Bid EUR/tCO2':'Minimum Bid €/tCO2', 'Maximum Bid EUR/tCO2':'Maximum Bid €/tCO2','Mean Price EUR/tCO2':'Mean €/tCO2','Median Price EUR/tCO2':'Median €/tCO2'}, inplace=True)
-    # #     df = df.loc[:,['Date','Auction Price €/tCO2','Minimum Bid €/tCO2','Maximum Bid €/tCO2','Mean €/tCO2','Median €/tCO2']].drop(index=df.index[0:5])
-    # #     df_Cprice = df_Cprice.append(df)
     df_Cprice.loc[:,'Date'] = pd.to_datetime(df_Cprice['Date'])
     df_Cprice.rename(columns={'Auction Price €/tCO2':'Cprice', 'Minimum Bid €/tCO2':'Cprice_min','Maximum Bid €/tCO2':'Cprice_max','Mean €/tCO2':'Cprice_mean','Median €/tCO2':'Cprice_median'}, inplace=True)
     df_Cprice = df_Cprice.loc[:,['Date', 'Cprice']] # take the "auction price", FIXME or take the "mean price"?
-    df_Cprice.sort_values(by='Date', ascending=False, inplace=True)
-    # df_Cprice.to_excel(rootdir+'0Cprice.xlsx', index=False)
-    return df_Cprice
-
-
-# prepare EU Eprice data from source file, take the average of different countries
-def prepare_Eprice_EU():
-    rootdir='data/source/EU/'
+    df_Cprice = df_Cprice.sort_values(by='Date').reset_index(drop=True)
+    
+    ### prepare EU Eprice data from source file, take the average of different countries
     filename = 'european_wholesale_electricity_price_data_daily-5.csv'
     df_Eprice = pd.read_csv(rootdir+filename)
     df_Eprice = df_Eprice.groupby(by=['Date']).mean().reset_index()
     df_Eprice.loc[:,'Date'] = pd.to_datetime(df_Eprice['Date'])
     df_Eprice.rename(columns={'Price (EUR/MWhe)':'Eprice'}, inplace=True)
-    df_Eprice.sort_values(by='Date', ascending=False, inplace=True)
-    df_Eprice.to_excel(rootdir+'0Eprice.xlsx', index=False)
-    return df_Eprice
+    df_Eprice = df_Eprice.sort_values(by='Date').reset_index(drop=True)
 
-
-# prepare explanatory data from source file
-def prepare_Xvar_EU():
-    rootdir='data/source/EU/Xvar/'
-    filedict = {
+    ### prepare explanatory data from source file
+    Xvars = {
         'Brent Crude Oil Last Day Financ (BZ=F).xlsx': 'BrentOil',
         'Crude Oil Aug 23 (CL=F).xlsx': 'CrudeOilF',
         'Dutch TTF Natural Gas Calendar (TTF=F).xlsx': 'TTF-NatGas',
@@ -71,97 +51,74 @@ def prepare_Xvar_EU():
         'USD-EUR (EUR=X).xlsx': 'USD-EUR',
     }
     dfX = pd.DataFrame(columns=['Date'])
-    for filename,colname in filedict.items():
-        df = pd.read_excel(rootdir+filename)
+    for filename,colname in Xvars.items():
+        df = pd.read_excel(rootdir+'Xvar/'+filename)
         df = df.loc[:,['Date','Close_']]
         df.rename(columns={'Close_':colname}, inplace=True)
         dfX = pd.merge(dfX, df, on='Date', how='outer')
     dfX['Date'] = pd.to_datetime(dfX['Date'])
-    dfX.sort_values(by='Date', ascending=False, inplace=True)
-    dfX.to_excel(rootdir+'0Xvar.xlsx', index=False)
-    return dfX
+    dfX = dfX.sort_values(by='Date').reset_index(drop=True)
 
-
-# merge EU data: Cprice, Eprice, Xvar
-def prepare_all_EU():
-    df_Cprice = prepare_Cprice_EU()
-    df_Eprice = prepare_Eprice_EU()
-    dfX = prepare_Xvar_EU()
-
-    df = pd.merge(left=df_Cprice, right=df_Eprice, how='left', on='Date', sort=False)
-    df = pd.merge(left=df, right=dfX, how='left', on='Date', sort=False)
-    df = df.iloc[26:1100] # FIXME hardcode '2018-07-09'~'2023-05-30'
-    for col in df.columns[1:]:
-        if  df[col].dtype != 'float64': # if dtype=object, mainly because there is ',' as thousand separator
-            df[col] = df[col].astype(str).str.replace(',','').astype(float)
-        df[col] = df[col].interpolate(method='linear', axis=0)
+    ### merge EU data: Cprice(20170109-20230707), Eprice(20150101-20230531), Xvar(20180709-20230707)
+    # outer join to observe data missing
+    df_eu_outer = pd.merge(left=df_Cprice, right=df_Eprice, how='outer', on='Date', sort=False)
+    df_eu_outer = pd.merge(left=df_eu_outer, right=dfX, how='outer', on='Date', sort=False)
+    df_eu_outer = df_eu_outer.sort_values(by='Date').reset_index(drop=True)
+    # merge to df_eu(20180709-20230707) NOTE: df_eu is not continuous in time (only weekdays have transaction)
+    df_eu = pd.merge(left=df_Cprice, right=dfX, how='right', on='Date', sort=False)
+    df_eu = pd.merge(left=df_eu, right=df_Eprice, how='inner', on='Date', sort=False)
+    for col in df_eu.columns[1:]:
+        if  df_eu[col].dtype != 'float64': # if dtype=object, mainly because there is ',' as thousand separator
+            df_eu[col] = df_eu[col].astype(str).str.replace(',','').astype(float)
+        df_eu[col] = df_eu[col].interpolate(method='linear', axis=0)
+    df_eu = df_eu.sort_values(by='Date').reset_index(drop=True)
     
-    df.sort_values(by='Date', ascending=True, inplace=True)
-    df = df.reset_index(drop=True)
-    return df
+
+    ### save to excel
+    if save:
+        writer = pd.ExcelWriter('data/df_eu.xlsx')
+        df_eu.to_excel(writer,'df-eu')
+        df_eu_outer.to_excel(writer,'df-eu-outer')
+        df_Cprice.to_excel(writer,'Cprice')
+        df_Eprice.to_excel(writer,'Eprice')
+        dfX.to_excel(writer,'Xvars')
+        writer.save()
+
+    ### visualize
+    if vis:
+        print(df_eu.info())
+        print(df_eu.head())
+        # normalize to make the plot more readable
+        df_norm = df_eu.set_index('Date')
+        df_norm = (df_norm - df_norm.mean()) / df_norm.std()
+        df_norm.iloc[:,1:].plot(figsize=(12,8), x_compat=True, alpha=0.6)
+        df_norm.Cprice.plot(color='black', label='Cprice', legend=True)
+        plt.show()
+
+    return df_eu
 
 
-'''
-Generate dataset for carbon markets in China
-    ['北京绿色交易所' '广州碳排放权交易所' '上海环境能源交易所' '湖北碳排放权交易中心' '天津排放权交易所' '重庆碳排放权交易中心' '福建海峡交易中心' '深圳排放权交易所']
+
+''' CHN-ETS 
+    Generate dataset for carbon credit price prediction from various sources
+    1. carbon emissions trading market data, 20160701-20230724, from ets.sceex.com.cn
     https://ets.sceex.com.cn/internal.htm?k=guo_nei_xing_qing&url=mrhq_gn&orderby=tradeTime%20desc&pageSize=14
+     ['北京绿色交易所' '广州碳排放权交易所' '上海环境能源交易所' '湖北碳排放权交易中心' '天津排放权交易所' '重庆碳排放权交易中心' '福建海峡交易中心' '深圳排放权交易所']
+    2. explanatory data, 20160701-20230816, from investing.com
 '''
-def prepare_chn_market(rootdir='data/source/'):
-    rootdir = rootdir + 'chn/'
-    
-    # read data of domestic markets
-    filename = '碳排放权交易-每日行情.xlsx'
-    df = pd.read_excel(rootdir+filename, na_values='-')
-    df['交易日期'] = pd.to_datetime(df['交易日期'])
-
-    # prelimary cleaning
-    df = df[ (df['交易机构'] != '欧洲气候交易所') & (df['交易机构'] != '欧洲能源交易所') ] # 欧洲的数据不全且有其他来源, 暂时不考虑
-    df.replace('北京环境交易所', '北京绿色交易所', inplace=True) # 北京绿色交易所的前身是2008年8月5日成立的北京环境交易所, 2020年更名为北京绿色交易所
-    df.replace('海峡股权交易中心', '福建海峡交易中心', inplace=True) # 海峡股权交易中心和福建海峡交易中心都是福建省的排放权交易所
-    orgs = df['交易机构'].unique()
-    # print(orgs) # ['北京绿色交易所' '广州碳排放权交易所' '上海环境能源交易所' '湖北碳排放权交易中心' '天津排放权交易所' '重庆碳排放权交易中心' '福建海峡交易中心' '深圳排放权交易所']
-
-    # group, join
-    df = df.groupby(by=['交易日期','交易机构']).mean().reset_index() # there are multiple rows (products) for the same date and org
-    df_chn = pd.DataFrame(columns=['交易日期'])
-    for i in orgs:
-        df0 = df.loc[df['交易机构']==i, ['交易日期','成交均价']].rename(columns={'成交均价':i})
-        df_chn = pd.merge(df_chn, df0, on='交易日期', how='outer')
-        
-    # read Xvar data of domestic markets
-    filename = '欧盟碳价-原油-煤炭-上证-广州碳价-USDCNY-EURCNY.xlsx'
-    dfX = pd.read_excel(rootdir+filename)
-    dfX['日期'] = pd.to_datetime(dfX['日期'])
-    dfX.rename(columns={ '日期':'交易日期'}, inplace=True)
-    df_chn = pd.merge(df_chn, dfX, how='inner', on='交易日期', sort=True)
-
-    df_chn.rename(columns={ '交易日期':'Date', 
-                            '北京绿色交易所':'Beijing', '广州碳排放权交易所':'Guangzhou', '上海环境能源交易所':'Shanghai', 
-                            '湖北碳排放权交易中心':'Hubei', '天津排放权交易所':'Tianjin', '重庆碳排放权交易中心':'Chongqing', 
-                            '福建海峡交易中心':'Fujian', '深圳排放权交易所':'Shenzhen',
-                            '原油':'Oil', '煤炭':'Coal', '上证':'SSEIndex', '广州碳价':'Guangzhou Cprice'
-                            }, inplace=True)
-    df_chn = df_chn.sort_values(by='Date').reset_index(drop=True)
-    
-    # for col in df_chn.columns:
-    #     df_chn[col] = df_chn[col].interpolate(method='linear', axis=0)
-    
-    return df_chn
-
-
-def prepare_chn(save=True):
+def prepare_chn(save=False, vis=False):
     rootdir = 'data/source/chn/'
     
     ### CHN markets
     cities = {
-        'Guangzhou': '广州',
-        'Hubei': '湖北',
-        'Shanghai': '上海',
-        'Beijing': '北京',
-        'Fujian': '福建',
-        'Chongqing': '重庆',
-        # 'Tianjin': '天津', # 太多交易品种
-        # 'Shenzhen': '深圳' # 太多交易品种
+        'Guangzhou': '广州',    # 数据相对完整
+        'Hubei': '湖北',        # 数据相对完整
+        'Shanghai': '上海',     # 数据还算完整
+        'Beijing': '北京',      # 数据不完整
+        'Fujian': '福建',       # 数据不完整
+        'Chongqing': '重庆',    # 数据不完整
+        # 'Tianjin': '天津',      # 同一天交易品种太多，不建议使用
+        # 'Shenzhen': '深圳'      # 同一天交易品种太多，不建议使用
     }
     df_chn = pd.DataFrame(columns=['Date'])
     for city in cities.keys():
@@ -172,10 +129,9 @@ def prepare_chn(save=True):
         df0['Date'] = pd.to_datetime(df0['Date'])
         df_chn = pd.merge(df_chn, df0, how='outer', on='Date', sort=True)
     df_chn = df_chn.sort_values(by='Date').reset_index(drop=True)
-    vis(df_chn)
     # print(df_chn.info())
     # print(df_chn)
-    # print(df_chn[df_chn['Date'].duplicated()])
+    # print(df_chn[df_chn['Date'].duplicated()]) # 天津、深圳市场同一天有多个交易品种
 
     ### X Vars
     Xvars = {
@@ -204,76 +160,59 @@ def prepare_chn(save=True):
         df0['Date'] = pd.to_datetime(df0['Date'])
         dfX = pd.merge(dfX, df0, how='outer', on='Date', sort=True)
     dfX = dfX.sort_values(by='Date').reset_index(drop=True)
-    vis(df_chn)
-    # print(dfX.info())
-    # print(dfX)
 
     ### df_all: join CCprices and Xvars
     df_all = pd.merge(df_chn, dfX, how='left', on='Date', sort=True)
     df_all = df_all.sort_values(by='Date').reset_index(drop=True)
-    vis(df_all)
-    # print(df_all.info())
-    # print(df_all)
 
     ### df_itpl: interpolate missing values
     df_itpl = df_all.copy()
     for col in df_itpl.columns[1:]:
         df_itpl[col] = df_itpl[col].interpolate(method='linear', axis=0)
-    vis(df_itpl)
-    # print(df_itpl.info())
-    # print(df_itpl)
+    df_itpl = df_itpl.sort_values(by='Date').reset_index(drop=True)
 
     ### save to excel
     if save:
-        writer = pd.ExcelWriter('data/df_chn_new.xlsx')
+        writer = pd.ExcelWriter('data/df_chn.xlsx')
         df_chn.to_excel(writer,'chn-markets')
         dfX.to_excel(writer,'Xvars')
         df_all.to_excel(writer,'df-chn')
         df_itpl.to_excel(writer,'df-chn-itpl')
         writer.save()
-    
+
+    ### visualize
+    if vis:
+        print(df_itpl.info())
+        print(df_itpl.head())
+        # normalize to make the plot more readable
+        df_norm = df_itpl.set_index('Date')
+        df_norm = (df_norm - df_norm.mean()) / df_norm.std()
+        df_norm.iloc[:,1:].plot(figsize=(12,8), x_compat=True, alpha=0.6)
+        # df_norm.Cprice.plot(color='black', label='Cprice', legend=True)
+        plt.show()
+
     return df_itpl
 
 
 def vis(df):
+    print(df.info())
+    print(df.head())
+    # normalize to make the plot more readable
     df_norm = df.set_index('Date')
     df_norm = (df_norm - df_norm.mean()) / df_norm.std()
     df_norm.iloc[:,1:].plot(figsize=(12,8), x_compat=True, alpha=0.6)
-    # df_norm.Cprice.plot(color='black', label='Cprice', legend=True)
+    df_norm.Cprice.plot(color='black', label='Cprice', legend=True)
     plt.show()
     return
 
 
 if __name__ == '__main__':
     
-    # # df_Cprice = prepare_Cprice_EU()
-    # # df_Cprice.to_excel('data/source/EU/EEX.xlsx', index=False)
-    # # dfX = prepare_Xvar_EU()
-    # dfX.to_excel('data/source/EU/dfX.xlsx', index=False)
-    
-    # ### df_eu
-    # # read, clean, merge, interpolate, plot
-    # df = prepare_all_EU()
-    # df.to_excel('data/df_eu.xlsx', index=False)
-    # print(df.info())
-    # print(df.head())
-    # # normalize to make the plot more readable
-    # df_norm = df.set_index('Date')
-    # df_norm = (df_norm - df_norm.mean()) / df_norm.std()
-    # df_norm.iloc[:,1:].plot(figsize=(12,8), x_compat=True, alpha=0.6)
-    # df_norm.Cprice.plot(color='black', label='Cprice', legend=True)
-    # plt.show()
-    
-    # # TODO:
-    # rootdir='data/source/'
-        
-    # ### df_chn
-    # df_chn = prepare_chn_market(rootdir)
-    # df_chn.to_excel('data/df_chn1.xlsx', index=False)
-    # print(df_chn.info())
-    # print(df_chn.head())
+    ### df_eu
+    # read, clean, merge, interpolate, plot
+    # df_eu = prepare_eu(save=True, vis=True)
 
+    # df_chn: read, clean, merge, interpolate, plot
+    df_chn = prepare_chn(save=True, vis=True)
 
-    # df_chn: read, clean, merge, interpolate
-    df_chn = prepare_chn(save=False)
-    vis(df_chn)
+    # # df_chn.to_excel('data/df_chn1.xlsx', index=False)
