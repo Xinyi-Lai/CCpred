@@ -8,7 +8,6 @@ import torch
 from models.nn_model import NN_model
 
 
-
 class LSTM(torch.nn.Module):
     """ LSTM
         Args:
@@ -31,8 +30,8 @@ class LSTM(torch.nn.Module):
 
 class LSTM_model(NN_model):
 
-    def __init__(self, model_name='LSTM', batch_size=1) -> None:
-        super().__init__(model_name, batch_size)
+    def __init__(self, model_name='LSTM', batch_size=1, lr=0.005) -> None:
+        super().__init__(model_name, batch_size, lr)
 
 
     def prepare_data(self, dataX, dataY, seq_len=30, pred_len=1):
@@ -45,8 +44,9 @@ class LSTM_model(NN_model):
                 pred_len (int, optional): num of steps to predict. Defaults to 1.
         """
         win_len, n_comp = dataX.shape
-        self.n_in = n_comp
-        self.n_out = pred_len
+        self.in_n = n_comp
+        self.out_n = pred_len
+        self.in_dim = (self.batch_size, seq_len, n_comp)  # shape of input to network
 
         # normalize as columns
         scalarX = StandardScaler() # StandardScaler() # MinMaxScaler()
@@ -69,5 +69,5 @@ class LSTM_model(NN_model):
 
 
     def init_model(self, hidden_size=10):
-        self.model = LSTM(input_size=self.n_in, hidden_size=hidden_size, output_size=self.n_out).to(self.device)
+        self.model = LSTM(input_size=self.in_n, hidden_size=hidden_size, output_size=self.out_n).to(self.device)
         return

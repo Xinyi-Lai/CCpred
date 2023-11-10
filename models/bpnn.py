@@ -8,7 +8,6 @@ import torch
 from models.nn_model import NN_model
 
 
-
 class BPNN(torch.nn.Module):
     """ BPNN
         Args:
@@ -31,8 +30,8 @@ class BPNN(torch.nn.Module):
 
 class BPNN_model(NN_model):
 
-    def __init__(self, model_name='BPNN', batch_size=1) -> None:
-        super().__init__(model_name, batch_size)
+    def __init__(self, model_name='BPNN', batch_size=1, lr=0.005) -> None:
+        super().__init__(model_name, batch_size, lr)
 
 
     def prepare_data(self, dataX, dataY, seq_len=30, pred_len=1):
@@ -45,8 +44,9 @@ class BPNN_model(NN_model):
                 pred_len (int, optional): num of steps to predict. Defaults to 1.
         """
         win_len, n_comp = dataX.shape
-        self.n_in = seq_len*n_comp
-        self.n_out = pred_len
+        self.in_n = seq_len*n_comp
+        self.out_n = pred_len
+        self.in_dim = (self.batch_size,  seq_len*n_comp)  # shape of input to network
 
         # normalize as columns
         scalarX = StandardScaler() # StandardScaler() # MinMaxScaler()
@@ -68,6 +68,6 @@ class BPNN_model(NN_model):
         return
 
 
-    def init_model(self, hidden_size=50):
-        self.model = BPNN(input_size=self.n_in, hidden_size=hidden_size, output_size=self.n_out).to(self.device)
+    def init_model(self, hidden_size=10):
+        self.model = BPNN(input_size=self.in_n, hidden_size=hidden_size, output_size=self.out_n).to(self.device)
         return

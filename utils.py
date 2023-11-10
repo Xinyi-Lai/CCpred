@@ -39,6 +39,8 @@ class HiddenPrints:
         sys.stdout = self._original_stdout
 
 
+# print metrics (rmse and mape) of each columns
+# plot the first, middle, and last columns
 def show_performance(trail_name, pred, real, vis):
     print('performance of %s' %trail_name)
     for i in range(pred.shape[1]):

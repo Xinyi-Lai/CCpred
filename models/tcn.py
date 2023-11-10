@@ -93,7 +93,7 @@ class TemporalConvNet(nn.Module):
         self.network = nn.Sequential(*layers)
         self.fc = nn.Linear(num_channels[-1], num_outputs)
 
-    def forward(self, x):   # (Batch, num_inputs, seq_len]
+    def forward(self, x):   # (Batch, num_inputs, seq_len)
         # NOTE: A bit tricky here. 
         # For RNNs, input size is usually (Batch, seq_len, channels) or (seq_len, Batch, channels). 
         # Here, input size is (Batch, num_inputs, seq_len), so that it can convolve across timesteps.
@@ -106,8 +106,8 @@ class TemporalConvNet(nn.Module):
 
 class TCN_model(NN_model):
 
-    def __init__(self, model_name='TCN', batch_size=1) -> None:
-        super().__init__(model_name, batch_size)
+    def __init__(self, model_name='TCN', batch_size=1, lr=0.001) -> None:
+        super().__init__(model_name, batch_size, lr)
 
 
     def prepare_data(self, dataX, dataY, seq_len=30, pred_len=1):
@@ -120,8 +120,9 @@ class TCN_model(NN_model):
                 pred_len (int, optional): num of steps to predict. Defaults to 1.
         """
         win_len, n_comp = dataX.shape
-        self.n_in = n_comp
-        self.n_out = pred_len
+        self.in_n = n_comp
+        self.out_n = pred_len
+        self.in_dim = (self.batch_size, n_comp, seq_len) # shape of input to network
 
         # normalize as columns
         scalarX = StandardScaler() # StandardScaler() # MinMaxScaler()
@@ -143,6 +144,6 @@ class TCN_model(NN_model):
         return
 
 
-    def init_model(self, n_channels=[16,32,16]):
-        self.model = TemporalConvNet(num_inputs=self.n_in, num_channels=n_channels, num_outputs=self.n_out).to(self.device)
+    def init_model(self, n_channels=[8,16,16,8]):
+        self.model = TemporalConvNet(num_inputs=self.in_n, num_channels=n_channels, num_outputs=self.out_n).to(self.device)
         return
