@@ -112,7 +112,7 @@ def integr_fuzzen_threshold(imfs, th=0.01):
     return reconstr
 
 
-def integr_fuzzen_pwlf(imfs, n_integr=2):
+def integr_fuzzen_pwlf(imfs, n_integr=2, vis=False):
     """ group imfs based on fuzzy entropy, determine threshold(s) by piecewise linear fit
         Args:
             imfs (np.array): imfs from decomposition, shape of (n_imf, win_len)
@@ -141,15 +141,17 @@ def integr_fuzzen_pwlf(imfs, n_integr=2):
                 break
     
     # plot piecewise linear fit result
-    plt.figure(figsize=(12,4))
-    xHat = np.linspace(min(x), max(x), num=10000)
-    yHat = my_pwlf.predict(xHat)
-    plt.stem(fuzzyEns)
-    plt.plot(x, fuzzyEns, '.', label='FuzzyEn scatter')
-    plt.plot(xHat, yHat, '-', label='piecewise linear fit')
-    for i in range(1,len(res)-1):
-        plt.axvline(x=res[i], c='g', linestyle='--')
-    plt.legend()
+    if vis:
+        plt.figure(figsize=(12,4))
+        xHat = np.linspace(min(x), max(x), num=10000)
+        yHat = my_pwlf.predict(xHat)
+        plt.stem(fuzzyEns)
+        plt.plot(x, fuzzyEns, '.', label='FuzzyEn scatter')
+        plt.plot(xHat, yHat, '-', label='piecewise linear fit')
+        for i in range(1,len(res)-1):
+            plt.axvline(x=res[i], c='g', linestyle='--')
+        plt.legend()
+        plt.show()
 
     return reconstr
 
@@ -340,6 +342,50 @@ def preparedata_win_restr(win_len:int, method:str, pred_len=10, val_num=100):
     # f.close()
 
     return
+
+
+
+
+############ series_restr_func ############
+
+def series_restr_func(series, decomp_method='ssa', integr_method='fuzzen_pwlf', n_decomp=10, n_integr=5):
+    ''' Decompose and integrate a series.
+        Args:
+            series (np.array): 1D series to be restructured
+            decomp_method (str): the decomposition method, one of ['ssa', 'ceemdan', 'eemd', 'emd']
+                                 when decomp_method == 'ssa', integr_method is ignored;
+                                 when decomp_method == 'ceemdan' or 'eemd' or 'emd', n_decomp is ignored;
+            integr_method (str): the integration method, one of ['fuzzen_threshold', 'fuzzen_pwlf', 'fine_to_coarse'], ignored if decomp_method == 'ssa'
+            n_decomp (int): the number of components to be decomposed, ignored if decomp_method == 'ceemdan' or 'eemd' or 'emd'
+            n_integr (int): the number of components to be integrated
+        Returns:
+            reconstr (np.array): the reconstructed subsequences, shape of (n_integr, len(series))
+    '''
+    series = series.reshape(-1)
+    # decompose
+    if decomp_method == 'ssa':
+        return restr_ssa(series, n_decomp, n_integr, False)
+        
+    elif decomp_method == 'ceemdan':
+        imfs = decomp_ceemdan(series)
+    elif decomp_method == 'eemd':
+        imfs = decomp_eemd(series)
+    elif decomp_method == 'emd':
+        imfs = decomp_emd(series)
+    else:
+        print('unrecognized decomp_method: ' + decomp_method)
+        return
+
+    # integrate
+    if integr_method == 'fuzzen_pwlf':
+        return integr_fuzzen_pwlf(imfs, n_integr)
+    elif integr_method == 'fine_to_coarse':
+        return integr_fine_to_coarse(imfs)
+    elif integr_method == 'fuzzen_threshold':
+        return integr_fuzzen_threshold(imfs)
+    else:
+        print('unrecognized integr_method: ' + integr_method)
+        return
 
 
 

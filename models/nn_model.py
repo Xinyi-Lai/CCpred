@@ -52,7 +52,7 @@ class NN_model(object):
         raise NotImplementedError()
     
 
-    def train_model(self, train_ratio=0.8, val_ratio=0.2):
+    def train_model(self, train_ratio=0.9, val_ratio=0.2):
         """ all nn models share the same training process: (except for seq2seq)
             0. split out training set (for nowin pred, train_ratio=0.8, for rolling pred with windowing, train_ratio=1)
             1. load pretrained model
@@ -142,25 +142,30 @@ class NN_model(object):
         return self.pred
 
 
-    def test_model(self, test_ratio=0.2):
+    def test_model(self, test_ratio=0.1):
         """ test the trained/loaded model on the testing set
             return the predicted and real values (inverse scaled)
         """
         split = int(len(self.dataset)*(1-test_ratio))
-        Dte = self.dataset[split:]
-        Dte = DataLoader(MyDataset(Dte), batch_size=self.batch_size)
+        Dte = DataLoader(MyDataset(self.dataset[split:]), batch_size=self.batch_size)
 
         real = []
         pred = []
+        loss_func = torch.nn.MSELoss()
+        test_loss = []
         self.model.eval()
-        with torch.no_grad():
+        with torch.no_grad(): # no backward propagation, no computational graph
             for seq, label in Dte:
                 ypred = self.model(seq)
+                test_loss.append(loss_func(ypred, label).item())
                 real.extend(label.cpu().numpy())
                 pred.extend(ypred.cpu().numpy())
+        
+        test_loss = np.mean(test_loss)
+        print('test_loss {:.8f}'.format(test_loss))
+
         pred = self.scalar.inverse_transform(np.array(pred))
         real = self.scalar.inverse_transform(np.array(real))
-
         return pred, real
 
 
