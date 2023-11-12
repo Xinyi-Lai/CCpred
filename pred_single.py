@@ -12,7 +12,7 @@ import torch
 from tqdm import tqdm
 
 from utils import *
-from models import *
+from nn_models import *
 from sarimax import forecast_arima
 
 

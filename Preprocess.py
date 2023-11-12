@@ -8,13 +8,15 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 
-''' EU-ETS 
-    Generate dataset for carbon credit price prediction from various sources
-    1. carbon credit price data, 20170109-20230707, from EEX.com
-    2. electricity price data, 20150101-20230531, from ember-climate.org
-    3. other explanatory data, 20180709-20230707, from Yahoo Finance
-'''
+
 def prepare_eu(save=False, vis=False):
+    ''' EU-ETS 
+        Generate dataset for carbon credit price prediction from various sources
+        1. carbon credit price data, 20170109-20230707, from EEX.com
+        2. electricity price data, 20150101-20230531, from ember-climate.org
+        3. other explanatory data, 20180709-20230707, from Yahoo Finance
+    '''
+
     rootdir='data/source/EU/'
 
     ### prepare EU Cprice data from several source files
@@ -99,14 +101,15 @@ def prepare_eu(save=False, vis=False):
 
 
 
-''' CHN-ETS 
-    Generate dataset for carbon credit price prediction from various sources
-    1. carbon emissions trading market data, 20160701-20230724, from ets.sceex.com.cn
-    https://ets.sceex.com.cn/internal.htm?k=guo_nei_xing_qing&url=mrhq_gn&orderby=tradeTime%20desc&pageSize=14
-     ['北京绿色交易所' '广州碳排放权交易所' '上海环境能源交易所' '湖北碳排放权交易中心' '天津排放权交易所' '重庆碳排放权交易中心' '福建海峡交易中心' '深圳排放权交易所']
-    2. explanatory data, 20160701-20230816, from investing.com
-'''
 def prepare_chn(save=False, vis=False):
+    ''' CHN-ETS 
+        Generate dataset for carbon credit price prediction from various sources
+        1. carbon emissions trading market data, 20160701-20230724, from ets.sceex.com.cn
+        https://ets.sceex.com.cn/internal.htm?k=guo_nei_xing_qing&url=mrhq_gn&orderby=tradeTime%20desc&pageSize=14
+        ['北京绿色交易所' '广州碳排放权交易所' '上海环境能源交易所' '湖北碳排放权交易中心' '天津排放权交易所' '重庆碳排放权交易中心' '福建海峡交易中心' '深圳排放权交易所']
+        2. explanatory data, 20160701-20230816, from investing.com
+    '''
+
     rootdir = 'data/source/chn/'
     
     ### CHN markets
@@ -169,6 +172,7 @@ def prepare_chn(save=False, vis=False):
     df_itpl = df_all.copy()
     for col in df_itpl.columns[1:]:
         df_itpl[col] = df_itpl[col].interpolate(method='linear', axis=0)
+    df_itpl.dropna(how='any', inplace=True)
     df_itpl = df_itpl.sort_values(by='Date').reset_index(drop=True)
 
     ### save to excel
@@ -208,11 +212,9 @@ def vis(df):
 
 if __name__ == '__main__':
     
-    ### df_eu
     # read, clean, merge, interpolate, plot
+    
     # df_eu = prepare_eu(save=True, vis=True)
 
-    # df_chn: read, clean, merge, interpolate, plot
     df_chn = prepare_chn(save=True, vis=True)
 
-    # # df_chn.to_excel('data/df_chn1.xlsx', index=False)
