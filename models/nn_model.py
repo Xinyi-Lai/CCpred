@@ -135,9 +135,8 @@ class NN_model(object):
         """ all nn models share the same prediction process: (for rolling prediction)
         """
         self.prepare_data(dataX, dataY, seq_len, pred_len)
-        self.split_data(test_ratio=0, val_ratio=0.2) # rolling prediction
         self.init_model()
-        self.train_model()
+        self.train_model(train_ratio=1, val_ratio=0.2)
         self.get_forecast()
         return self.pred
 

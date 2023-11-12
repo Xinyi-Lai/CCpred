@@ -68,6 +68,6 @@ class GRU_model(NN_model):
         return
 
 
-    def init_model(self, hidden_size=10):
-        self.model = GRU(input_size=self.in_n, hidden_size=hidden_size, output_size=self.out_n).to(self.device)
+    def init_model(self, hidden_size=10, num_layers=1):
+        self.model = GRU(self.in_n, hidden_size, num_layers, self.out_n).to(self.device)
         return
