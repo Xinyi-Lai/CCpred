@@ -8,8 +8,8 @@ import torch
 import torch.nn as nn
 import random
 
-from models.nn_model import *
-from models import Seq2Seq_model
+from nn_models.nn_model import *
+from nn_models import Seq2Seq_model
 
 
 class Encoder(nn.Module):

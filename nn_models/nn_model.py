@@ -10,7 +10,7 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from torchinfo import summary
 
 from utils import *
-from models.early_stopping import EarlyStopping
+from nn_models.early_stopping import EarlyStopping
 
 
 class NN_model(object):

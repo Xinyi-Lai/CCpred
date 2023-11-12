@@ -5,7 +5,7 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import torch
 
-from models.nn_model import NN_model
+from nn_models.nn_model import NN_model
 
 
 class MLP(torch.nn.Module):

@@ -1,15 +1,15 @@
-""" Long Short Term Memory
+""" Gated Recurrent Unit
 """
 
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 import torch
 
-from models.nn_model import NN_model
+from nn_models.nn_model import NN_model
 
 
-class LSTM(torch.nn.Module):
-    """ LSTM
+class GRU(torch.nn.Module):
+    """ GRU
         Args:
             input_size (int): num of input features
             hidden_size (int): number of features in the hidden state
@@ -17,20 +17,20 @@ class LSTM(torch.nn.Module):
             output_size (int, optional): num of output channels. Defaults to 1.
     """
     def __init__(self, input_size, hidden_size, num_layers=1, output_size=1):
-        super(LSTM, self).__init__()
-        self.lstm = torch.nn.LSTM(input_size, hidden_size, num_layers, batch_first=True)
+        super(GRU, self).__init__()
+        self.gru = torch.nn.GRU(input_size, hidden_size, num_layers, batch_first=True)
         self.fc = torch.nn.Linear(hidden_size, output_size)
     def forward(self, x):   # x: (Batch, seq_len, input_size)
-        x, _ = self.lstm(x) # x: (Batch, seq_len, hidden_size)
+        x, _ = self.gru(x)  # x: (Batch, seq_len, hidden_size)
         x = x[:, -1, :]     # x: (Batch, 1, hidden_size) # the last of the sequence
         x = self.fc(x)      # x: (Batch, output_size)
         return x
 
 
 
-class LSTM_model(NN_model):
+class GRU_model(NN_model):
 
-    def __init__(self, model_name='LSTM', batch_size=1, lr=0.005) -> None:
+    def __init__(self, model_name='GRU', batch_size=1, lr=0.005) -> None:
         super().__init__(model_name, batch_size, lr)
 
 
@@ -69,5 +69,5 @@ class LSTM_model(NN_model):
 
 
     def init_model(self, hidden_size=10, num_layers=1):
-        self.model = LSTM(self.in_n, hidden_size, num_layers, self.out_n).to(self.device)
+        self.model = GRU(self.in_n, hidden_size, num_layers, self.out_n).to(self.device)
         return

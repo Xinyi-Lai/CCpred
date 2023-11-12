@@ -7,7 +7,7 @@ import torch
 import torch.nn as nn
 import random
 
-from models.nn_model import *
+from nn_models.nn_model import *
 
 
 class Encoder(nn.Module):

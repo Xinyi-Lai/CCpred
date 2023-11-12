@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from torch.nn.utils import weight_norm
 
-from models.nn_model import NN_model
+from nn_models.nn_model import NN_model
 
 
 class Chomp1d(nn.Module):
