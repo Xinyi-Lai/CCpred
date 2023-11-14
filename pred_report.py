@@ -8,6 +8,7 @@ import pmdarima as pm
 from copy import deepcopy
 from termcolor import colored
 from tqdm import tqdm
+import pickle
 
 from forecasting_methods import *
 from nn_models import *
@@ -74,7 +75,7 @@ def series_pred_func(data, method, trail_name=None, batch_size=1, seq_len=100, p
         m.init_model()
         m.train_model(train_ratio=train_ratio, val_ratio=0.2)
         # m.load_model()
-        m.print_summary()
+        # m.print_summary()
         pred, real = m.test_model(test_ratio=1-train_ratio)
 
     elif method == 'arima': 
@@ -82,7 +83,7 @@ def series_pred_func(data, method, trail_name=None, batch_size=1, seq_len=100, p
 
     elif method == 'svr':
         ml_x, ml_y = ml_prepare_data(data, seq_len, pred_len)
-        pred, real = pred_svr(ml_x, ml_y, train_ratio, auto=False)
+        pred, real = pred_svr(ml_x, ml_y, train_ratio)
 
     else:
         print('unrecognized method: ' + method)
@@ -91,70 +92,121 @@ def series_pred_func(data, method, trail_name=None, batch_size=1, seq_len=100, p
     return pred, real
 
 
-### no windowing, single framework, predict with single nn-model
-def pred_nowin_single(method, data, vis=True):
-    trail_name = "sg_nowin_%s" %(method)
-    print(colored(trail_name, 'blue'))
-    pred, real = series_pred_func(data, method, trail_name, batch_size, seq_len, pred_len, train_ratio)
-    show_performance(trail_name, pred, real, vis)
-    return pred, real
+# no windowing, single framework, predict
+def pred_nowin_single(data, trail_name, method):
+    return series_pred_func(data, method, trail_name, batch_size, seq_len, pred_len, train_ratio)
 
 
 # no windowing, hybrid framework, restructure + predict + sum
-def pred_nowin_hybrid(restr, hi_pred, lo_pred, vis=True):
-    trail_name = 'hb_%s_%s_%s' %(restr, hi_pred, lo_pred)
-    print(colored(trail_name, 'blue'))
+def pred_nowin_hybrid(data, trail_name, restr, hi_pred, lo_pred):
+
+    dataX = data[:,1:]
+    dataY = data[:,0].reshape(-1,1)
+    reconstr = series_restr_func(dataY, decomp_method=restr, n_integr=3)
 
     pred = []
     real = []
-    reconstr = series_restr_func(dataY, decomp_method=restr, n_integr=3)
-
     for i in range(reconstr.shape[0]):
         subY = reconstr[i,:].reshape(-1,1)
         _, not_stationary = pm.arima.ADFTest().should_diff(subY)
+        subData = np.concatenate((subY, dataX), axis=1)
 
         # if stationary, goes to high-freq forecast
         if ~not_stationary:
             print('subseq'+str(i)+': high-freq forecast with '+hi_pred+'...')
-            sub_pred, sub_real = series_pred_func(dataX, subY, hi_pred, trail_name+str(i), batch_size, seq_len, pred_len, train_ratio)
+            sub_pred, sub_real = series_pred_func(subData, hi_pred, trail_name+str(i), batch_size, seq_len, pred_len, train_ratio)
 
         # if non-stationary, goes to low-freq forecast
         else:
             print('subseq'+str(i)+': low-freq forecast with '+lo_pred+'...')
-            sub_pred, sub_real = series_pred_func(dataX, subY, lo_pred, trail_name+str(i), batch_size, seq_len, pred_len, train_ratio)
+            sub_pred, sub_real = series_pred_func(subData, lo_pred, trail_name+str(i), batch_size, seq_len, pred_len, train_ratio)
         
         pred.append(sub_pred)
         real.append(sub_real)
 
     pred = np.sum(np.array(pred), axis=0)
     real = np.sum(np.array(real), axis=0)
-    
-    show_performance(trail_name, pred, real, vis=True)
+
+    return pred, real
+
+
+
+### the whole workflow
+def CCpred_nowin(WhichMarket, SingleOrHybrid, RestrMethod, PredMethods, vis, save):
+    trail_name = ('%s-%s-%s-' %(WhichMarket, SingleOrHybrid, RestrMethod)) + '-'.join(PredMethods)
+    print(colored(trail_name, 'green'))
+
+    markets = {'EU':'EU-ETS', 'GZ':'Guangzhou', 'HB':'Hubei', 'SH':'Shanghai', 'BJ':'Beijing', 'FJ':'Fujian', 'CQ':'Chongqing'}
+    if markets[WhichMarket] == 'EU-ETS':
+        data = loaddata_eu()
+    elif WhichMarket in markets.keys():
+        data = loaddata_chn(markets[WhichMarket])
+    else:
+        print('unrecognized market: ' + WhichMarket)
+        return
+
+    if SingleOrHybrid == 'sg':
+        pred, real = pred_nowin_single(data, trail_name, PredMethods[0])
+    elif SingleOrHybrid == 'hb':
+        pred, real = pred_nowin_hybrid(data, trail_name, RestrMethod, PredMethods[0], PredMethods[1])
+    else:
+        print('unrecognized framework: ' + SingleOrHybrid)
+        return
+
+    show_performance(trail_name, pred, real, vis)
+
+    if save:
+        writer = pd.ExcelWriter('res/result_report_'+WhichMarket+'.xlsx', mode='a', engine='openpyxl')
+        pd.DataFrame(pred).to_excel(writer, sheet_name=trail_name+'-pred')
+        pd.DataFrame(real).to_excel(writer, sheet_name=trail_name+'-real')
+        writer.save()
+        writer.close()
+        # with open ('result_report.pkl', 'rb') as f:
+        #     result_dict = pickle.load(f)
+        # result_dict[trail_name+'+pred'] = pred
+        # result_dict[trail_name+'+real'] = real
+        # with open ('result_report.pkl', 'wb') as f:
+        #     pickle.dump(result_dict, f)
 
     return
 
 
 
-
 if __name__ == '__main__':
 
-    data = loaddata_eu()
-    # data = loaddata_chn('Guangzhou')
+    CCpred_nowin('BJ', 'hb', 'ceemdan', ['arima','svr'], vis=False, save=True)
+    CCpred_nowin('BJ', 'hb', 'ceemdan', ['svr','arima'], vis=False, save=True)
+    CCpred_nowin('BJ', 'hb', 'ceemdan', ['arima','tcn'], vis=False, save=True)
+    CCpred_nowin('BJ', 'hb', 'ceemdan', ['tcn','arima'], vis=False, save=True)
+    CCpred_nowin('BJ', 'hb', 'ceemdan', ['svr','tcn'], vis=False, save=True)
+    CCpred_nowin('BJ', 'hb', 'ceemdan', ['tcn','svr'], vis=False, save=True)
+
+
+    # CCpred_nowin('EU', 'hb', 'ceemdan', ['arima','tcn'], vis=False, save=True) # TODO fail
+    
+
+    
+    
+
+    # data = loaddata_eu()
+    # data = loaddata_chn('Hubei')
 
     # pred_nowin_single('tcn', data, vis=True)
     # pred_nowin_single('gru', data, vis=True)
     # pred_nowin_single('lstm', data, vis=True)
-    pred_nowin_single('mlp', data, vis=True)
+    # pred_nowin_single('mlp', data, vis=True)
 
-    # pred_nowin_single('arima', data, vis=True)
-    # pred_nowin_single('svr', data, vis=True)
+    # pred, real = pred_nowin_single(data, 'arima', vis=False)
+    # pred, real = pred_nowin_single(data, 'svr', vis=False, save=True)
 
-    # pred_nowin_hybrid('ssa', 'arima', 'arima', vis=True)
-    # pred_nowin_hybrid('ssa', 'arima', 'svr', vis=True)
-    # pred_nowin_hybrid('ssa', 'arima', 'tcn', vis=True)
+    # pred, real = pred_nowin_hybrid(data, 'ssa', 'arima', 'svr', vis=False)
+    # pred, real = pred_nowin_hybrid(data, 'ssa', 'svr', 'arima', vis=False)
+    # pred, real = pred_nowin_hybrid(data, 'ssa', 'arima', 'arima', vis=False)
 
     # pred_win_single_arima('arima', True)
     # pred_win_hybrid_arima('ssa', 'arima', 'tcn', True)
+
+
 
     
     

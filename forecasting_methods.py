@@ -3,6 +3,8 @@
 
 import numpy as np
 from tqdm import tqdm
+from utils import *
+import warnings
 
 # for svr
 from sklearn.svm import SVR
@@ -45,17 +47,18 @@ def pred_svr(ml_x, ml_y, train_ratio=0.9, auto=False):
             ml_x (np.array), shape (n_samples, n_features): features
             ml_y (np.array), shape (n_samples, pred_len): targets
             train_ratio (float): ratio of training data. Defaults to 0.9.
-            verbose (bool): whether to print. Defaults to False.
             auto (bool): whether to auto-tune parameters. Defaults to False.
         Returns:
             real (np.array), shape (n_samples, pred_len): real targets
             pred (np.array), shape (n_samples, pred_len): predicted targets
+            # score (np.array), shape (pred_len,): scores for each step (1/rmse)
     '''
 
     split = int(len(ml_y)*train_ratio)
     test_size = len(ml_y) - split # some rounding issues
     real = np.zeros((test_size, ml_y.shape[1]))
     pred = np.zeros((test_size, ml_y.shape[1]))
+    score = np.zeros(ml_y.shape[1])
 
     # predict each step (each y in ml_y)
     for i in tqdm(range(ml_y.shape[1])):
@@ -96,11 +99,19 @@ def pred_svr(ml_x, ml_y, train_ratio=0.9, auto=False):
                 )
 
         clf.fit(train_x, train_y)
+
+        # calculate score on recent steps in training set
+        train_p = clf.predict(train_x)
+        train_p = scalarY.inverse_transform(train_p.reshape(-1,1)).reshape(-1)
+        train_y = scalarY.inverse_transform(train_y.reshape(-1,1)).reshape(-1)
+        score[i] = 1 / np.sqrt(cal_rmse(train_y, train_p))
+
+        # make predictions on the test set
         test_p = clf.predict(test_x)
         pred[:,i] = scalarY.inverse_transform(test_p.reshape(-1,1)).reshape(-1)
         real[:,i] = scalarY.inverse_transform(test_y.reshape(-1,1)).reshape(-1)
 
-    return pred, real
+    return pred, real#, score
 
 
 
@@ -108,35 +119,49 @@ def pred_svr(ml_x, ml_y, train_ratio=0.9, auto=False):
 ########## time series analysis models ##########
 
 
-def pred_arima(data, seq_len=100, pred_len=10, train_ratio=0.9):
+def pred_arima(data, seq_len=100, pred_len=10, train_ratio=0.9, auto=True, order=(5,3,5)):
     ''' predict with ARIMA (AutoRegressive Integrated Moving Average)
         Args:
             data (np.array), shape (n_samples, 1+n_features): target at the first column, followed by other features 
             seq_len (int): sequence length in RNN, for alignment. Defaults to 100.
             pred_len (int): num of steps to predict. Defaults to 10.
             train_ratio (float): ratio of training data. Defaults to 0.9.
+            auto (bool): whether to auto-tune parameters. Defaults to False.
+        Returns:
+            real (np.array), shape (n_samples, pred_len): real targets
+            pred (np.array), shape (n_samples, pred_len): predicted targets
+            # score (np.array), shape (pred_len,): scores fitted sequence (1/rmse)
     '''
-
+    warnings.simplefilter('ignore') # ignore warnings
     dataY = data[:,0]
     split = int( (len(dataY)-seq_len-pred_len+1) * train_ratio )  + seq_len # the first seq is in training set
     trainY, testY = dataY[:split], dataY[split:]
 
     # fit model with training set
-    model = pm.auto_arima(  
-        trainY, start_p=1, start_q=1,
-        max_p=3, max_q=3,           # maximum p and q
-        information_criterion='aic',# 'aic', 'aicc', 'bic', 'hqic', 'oob'
-        d=0,                        # d=None let model determine 'd' # FIXME
-        test='adf',                 # use adftest to find optimal 'd', or 'kpss', 'pp'
-        m=1,                        # frequency of series, m=1 means non-seasonal
-        seasonal=False,             # no Seasonality
-        stepwise=True               # The stepwise algorithm can be significantly faster than
-                                    # a non-stepwise selection (i.e., essentially a grid search) 
-                                    # and is less likely to over-fit the model. 
-    ) 
+
+    if auto: # auto-tune parameters, better    
+        model = pm.auto_arima(  
+            trainY, start_p=1, start_q=1,
+            max_p=10, max_q=10,         # maximum p and q
+            information_criterion='aic',# 'aic', 'aicc', 'bic', 'hqic', 'oob'
+            d=None,                     # d=None let model determine 'd' # FIXME
+            test='adf',                 # use adftest to find optimal 'd', or 'kpss', 'pp'
+            m=1,                        # frequency of series, m=1 means non-seasonal
+            seasonal=False,             # no Seasonality
+            stepwise=True               # The stepwise algorithm can be significantly faster than a non-stepwise selection (i.e., essentially a grid search) and is less likely to over-fit the model. 
+        ) 
+    else: # manually set parameters, baseline
+        model = pm.arima.ARIMA(order=order) # baseline
+        model.fit(trainY)
+
     # print(model.summary())
 
-    # predict with test set
+    # calculate the fitting score on the training set
+    fitted = model.fittedvalues()
+    score = 1 / np.sqrt(cal_rmse(trainY, fitted))
+    score = np.array([score] * pred_len) # FIXME
+
+    # make predictions on the test set
     pred = np.zeros((len(testY)-pred_len+1, pred_len))
     real = np.zeros((len(testY)-pred_len+1, pred_len))
     for i in tqdm(range(len(testY)-pred_len+1)):
@@ -146,4 +171,4 @@ def pred_arima(data, seq_len=100, pred_len=10, train_ratio=0.9):
         pred[i,:] = new_pred
         real[i,:] = dataY[split+i: split+i+pred_len].reshape(-1)
 
-    return pred, real
+    return pred, real#, score

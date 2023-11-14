@@ -61,18 +61,21 @@ def prepare_eu(save=False, vis=False):
     dfX['Date'] = pd.to_datetime(dfX['Date'])
     dfX = dfX.sort_values(by='Date').reset_index(drop=True)
 
+
     ### merge EU data: Cprice(20170109-20230707), Eprice(20150101-20230531), Xvar(20180709-20230707)
     # outer join to observe data missing
     df_eu_outer = pd.merge(left=df_Cprice, right=df_Eprice, how='outer', on='Date', sort=False)
     df_eu_outer = pd.merge(left=df_eu_outer, right=dfX, how='outer', on='Date', sort=False)
     df_eu_outer = df_eu_outer.sort_values(by='Date').reset_index(drop=True)
-    # merge to df_eu(20180709-20230707) NOTE: df_eu is not continuous in time (only weekdays have transaction)
-    df_eu = pd.merge(left=df_Cprice, right=dfX, how='right', on='Date', sort=False)
-    df_eu = pd.merge(left=df_eu, right=df_Eprice, how='inner', on='Date', sort=False)
+    
+    # data in 20180709-20230707 is valid NOTE: df_eu is not continuous in time (only weekdays have transaction)
+    df_eu = df_eu_outer[ (df_eu_outer['Date'] >= pd.to_datetime('20180709')) & (df_eu_outer['Date'] <= pd.to_datetime('20230531')) ]
+    df_eu.dropna(subset=['Cprice'], inplace=True) # drop rows with missing Cprice
     for col in df_eu.columns[1:]:
         if  df_eu[col].dtype != 'float64': # if dtype=object, mainly because there is ',' as thousand separator
             df_eu[col] = df_eu[col].astype(str).str.replace(',','').astype(float)
-        df_eu[col] = df_eu[col].interpolate(method='linear', axis=0)
+        df_eu[col] = df_eu[col].interpolate(method='spline', order=3, axis=0)
+        # df_eu[col] = df_eu[col].interpolate(method='linear', axis=0)
     df_eu = df_eu.sort_values(by='Date').reset_index(drop=True)
     
 
@@ -214,7 +217,7 @@ if __name__ == '__main__':
     
     # read, clean, merge, interpolate, plot
     
-    # df_eu = prepare_eu(save=True, vis=True)
+    df_eu = prepare_eu(save=True, vis=True)
 
-    df_chn = prepare_chn(save=True, vis=True)
+    # df_chn = prepare_chn(save=True, vis=True)
 

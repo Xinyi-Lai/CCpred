@@ -60,3 +60,23 @@ def show_performance(trail_name, pred, real, vis):
             ax.set_title('col%d, RMSE=%.2f, MAPE=%.2f%%' %(icol, cal_rmse(r,p), cal_mape(r,p)))
             ax.legend()
         plt.show()
+
+
+# plot the first and last columns
+def show_2_performance(method, pred, real):
+    plt.figure(figsize=(12,4))
+    plt.subplot(121)
+    plt.plot(real[:,0], label="real")
+    plt.plot(pred[:,0], label="predict")
+    plt.ylabel('Price')
+    plt.xlabel('Time')
+    plt.legend(loc='best')
+    plt.title(method+' step1, RMSE = %.2f, MAPE = %.2f%%' %(cal_rmse(real[:,0], pred[:,0]), cal_mape(real[:,0], pred[:,0])))
+    plt.subplot(122)
+    plt.plot(real[:,9], label="real")
+    plt.plot(pred[:,9], label="predict")
+    plt.ylabel('Price')
+    plt.xlabel('Time')
+    plt.legend(loc='best')
+    plt.title(method+' step10, RMSE = %.2f, MAPE = %.2f%%' %(cal_rmse(real[:,9], pred[:,9]), cal_mape(real[:,9], pred[:,9])))
+    plt.show()
