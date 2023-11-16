@@ -123,16 +123,17 @@ def prepare_chn(save=False, vis=False):
         'Beijing': '北京',      # 数据不完整
         'Fujian': '福建',       # 数据不完整
         'Chongqing': '重庆',    # 数据不完整
-        # 'Tianjin': '天津',      # 同一天交易品种太多，不建议使用
-        # 'Shenzhen': '深圳'      # 同一天交易品种太多，不建议使用
+        'Tianjin': '天津',      # 同一天交易品种太多，不建议使用
+        'Shenzhen': '深圳'      # 同一天交易品种太多，不建议使用
     }
     df_chn = pd.DataFrame(columns=['Date'])
     for city in cities.keys():
         df0 = pd.read_excel(rootdir+'碳排放权交易-每日行情.xlsx', sheet_name=cities[city], na_values='-')
         df0 = df0[['交易日期', '成交均价']]
-        df0.dropna(inplace=True)
         df0.rename(columns={'交易日期':'Date', '成交均价':city}, inplace=True)
         df0['Date'] = pd.to_datetime(df0['Date'])
+        df0 = df0.groupby(by='Date').mean().reset_index()
+        df0.dropna(inplace=True)
         df_chn = pd.merge(df_chn, df0, how='outer', on='Date', sort=True)
     df_chn = df_chn.sort_values(by='Date').reset_index(drop=True)
     # print(df_chn.info())

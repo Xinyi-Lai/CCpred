@@ -45,7 +45,7 @@ def extend_symmetry(series, ex=5):
         series (np.array): time series to be decomposed, shape of (win_len,)
         ex (int): number of points to extend
     Returns:
-        series (np.array): the decomposed series, shape of (n_imf, win_len)
+        imfs (np.array): the decomposed series, shape of (n_imf, win_len)
 """
 
 # CEEMDAN (Complete ensemble EMD with adaptive noise)
@@ -85,8 +85,36 @@ def decomp_emd(series):
     return np.concatenate((imfs, res.reshape(1,-1)))
 
 
+### VMD (Variational Mode Decomposition)
+"""decompose the series with VMD algorithm
+    Args:
+        series (np.array): time series to be decomposed, shape of (win_len,)
+        n_decomp (int): number of modes to decompose
+    Returns:
+        series (np.array): the decomposed series, shape of (n_decomp, win_len)
+"""
+def decomp_vmd(series, n_decomp=20):
+    from vmdpy import VMD
+    # in VMD(), the last sample is discarded if the series has odd length, 
+    # so pad a zero at the beginning, and remove it after decomposition
+    series_len = len(series)
+    if series_len%2:
+        series = np.concatenate((np.zeros(1), series))
+    u, u_hat, omega = VMD(  
+        series, 
+        alpha=len(series)*1.5,  # moderate bandwidth constraint, 带宽限制 经验取值为 抽样点长度 1.5-2.0 倍
+        tau=0,      # noise-tolerance (no strict fidelity enforcement)
+        K=n_decomp, # number of modes
+        DC=True,    # has DC component
+        init=1,     # initialize omegas uniformly
+        tol=1e-6    # tolerance
+    )
+    if series_len%2:
+        u = u[:,1:]
+    return u
 
-### EWT (Empirical Wavelet Transform) TODO: to be explored: EWT, ESMD, VMD, DoubleDecomp
+
+### EWT (Empirical Wavelet Transform) TODO: to be explored: EWT, ESMD, DoubleDecomp
 def decomp_ewt(series, num_comp):
     import ewtpy
     ewt, mfb, boundaries = ewtpy.EWT1D(series, N=num_comp)
@@ -142,7 +170,7 @@ def integr_fuzzen_pwlf(imfs, n_integr=2, vis=False):
     
     # plot piecewise linear fit result
     if vis:
-        plt.figure(figsize=(12,4))
+        plt.figure(figsize=(9,3))
         xHat = np.linspace(min(x), max(x), num=10000)
         yHat = my_pwlf.predict(xHat)
         plt.stem(fuzzyEns)
@@ -235,7 +263,7 @@ def vis_restr(decomposed, grouped, orig):
     print( np.sqrt(np.mean( (orig-sum_decomposed)**2 )) )
     print( np.sqrt(np.mean( (orig-sum_grouped)**2 )) )
 
-    plt.figure(figsize=(15,15))
+    plt.figure(figsize=(10,10))
     plt.subplot(211)
     for i in range(decomposed.shape[0]):
         plt.plot(decomposed[i], label='sub%d'%i)
@@ -348,11 +376,11 @@ def preparedata_win_restr(win_len:int, method:str, pred_len=10, val_num=100):
 
 ############ series_restr_func ############
 
-def series_restr_func(series, decomp_method='ssa', integr_method='fuzzen_pwlf', n_decomp=10, n_integr=5):
+def series_restr_func(series, decomp_method='ssa', integr_method='fuzzen_pwlf', n_decomp=20, n_integr=5):
     ''' Decompose and integrate a series.
         Args:
             series (np.array): 1D series to be restructured
-            decomp_method (str): the decomposition method, one of ['ssa', 'ceemdan', 'eemd', 'emd']
+            decomp_method (str): the decomposition method, one of ['ssa', 'vmd', 'ceemdan', 'eemd', 'emd']
                                  when decomp_method == 'ssa', integr_method is ignored;
                                  when decomp_method == 'ceemdan' or 'eemd' or 'emd', n_decomp is ignored;
             integr_method (str): the integration method, one of ['fuzzen_threshold', 'fuzzen_pwlf', 'fine_to_coarse'], ignored if decomp_method == 'ssa'
@@ -366,6 +394,8 @@ def series_restr_func(series, decomp_method='ssa', integr_method='fuzzen_pwlf', 
     if decomp_method == 'ssa':
         return restr_ssa(series, n_decomp, n_integr, False)
         
+    elif decomp_method == 'vmd':
+        imfs = decomp_vmd(series, n_decomp)
     elif decomp_method == 'ceemdan':
         imfs = decomp_ceemdan(series)
     elif decomp_method == 'eemd':
