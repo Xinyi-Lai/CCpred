@@ -94,7 +94,7 @@ def decomp_emd(series):
         series (np.array): the decomposed series, shape of (n_decomp, win_len)
 """
 def decomp_vmd(series, n_decomp=20):
-    from vmdpy import VMD
+    from vmd import VMD
     # in VMD(), the last sample is discarded if the series has odd length, 
     # so pad a zero at the beginning, and remove it after decomposition
     series_len = len(series)
@@ -395,7 +395,7 @@ def series_restr_func(series, decomp_method='ssa', integr_method='fuzzen_pwlf', 
         return restr_ssa(series, n_decomp, n_integr, False)
         
     elif decomp_method == 'vmd':
-        imfs = decomp_vmd(series, n_decomp)
+        imfs = decomp_vmd(series)
     elif decomp_method == 'ceemdan':
         imfs = decomp_ceemdan(series)
     elif decomp_method == 'eemd':

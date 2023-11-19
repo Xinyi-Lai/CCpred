@@ -1,21 +1,21 @@
 '''
 For the report, no windowing, predict with single and hybrid framework
 '''
-
+import openpyxl
 import pandas as pd
-import numpy as np
+import pickle
 import pmdarima as pm
+import numpy as np
 from copy import deepcopy
 from termcolor import colored
 from tqdm import tqdm
-import pickle
 
 from forecasting_methods import *
 from nn_models import *
 from series_restr import series_restr_func
 from utils import *
 
-# global parameters
+### global parameters
 batch_size = 1
 pred_len = 10
 seq_len = 100
@@ -116,7 +116,12 @@ def pred_nowin_hybrid(data, trail_name, restr, hi_pred, lo_pred):
 
     for i in range(reconstr.shape[0]):
         subY = reconstr[i,:].reshape(-1,1)
-        _, not_stationary = pm.arima.ADFTest().should_diff(subY)
+        try:
+            _, not_stationary = pm.arima.ADFTest().should_diff(subY)
+        except Exception as e:
+            print(e)
+            not_stationary = False
+        
         subData = np.concatenate((subY, dataX), axis=1)
 
         # if stationary, goes to high-freq forecast
@@ -135,8 +140,12 @@ def pred_nowin_hybrid(data, trail_name, restr, hi_pred, lo_pred):
 
 
 ### the whole workflow
-def CCpred_nowin(WhichMarket, SingleOrHybrid, RestrMethod, PredMethods, vis, save):
-    trail_name = ('%s-%s-%s-' %(WhichMarket, SingleOrHybrid, RestrMethod)) + '-'.join(PredMethods)
+def CCpred_nowin(WhichMarket, PredMethod, vis, save):
+    if len(PredMethod.split('-')) == 1:
+        SingleOrHybrid, RestrMethod, PredMethods = 'sg', None, [PredMethod]
+    else:
+        SingleOrHybrid, RestrMethod, PredMethods = 'hb', PredMethod.split('-')[0], PredMethod.split('-')[1:]
+    trail_name = WhichMarket + '-' + PredMethod
     print(colored(trail_name, 'green'))
 
     markets = {'EU':'EU-ETS', 'GZ':'Guangzhou', 'HB':'Hubei', 'SH':'Shanghai', 'BJ':'Beijing', 'FJ':'Fujian', 'CQ':'Chongqing', 'TJ':'Tianjin', 'SZ':'Shenzhen'}
@@ -149,9 +158,9 @@ def CCpred_nowin(WhichMarket, SingleOrHybrid, RestrMethod, PredMethods, vis, sav
         return
 
     if SingleOrHybrid == 'sg':
-        pred, real = pred_nowin_single(data, trail_name, PredMethods[0])
+        pred, real = pred_nowin_single(data, trail_name, PredMethods[0].lower())
     elif SingleOrHybrid == 'hb':
-        pred, real = pred_nowin_hybrid(data, trail_name, RestrMethod, PredMethods[0], PredMethods[1])
+        pred, real = pred_nowin_hybrid(data, trail_name, RestrMethod.lower(), PredMethods[0].lower(), PredMethods[1].lower())
     else:
         print('unrecognized framework: ' + SingleOrHybrid)
         return
@@ -159,11 +168,58 @@ def CCpred_nowin(WhichMarket, SingleOrHybrid, RestrMethod, PredMethods, vis, sav
     show_performance(trail_name, pred, real, vis)
 
     if save:
-        writer = pd.ExcelWriter('res/result_report_'+WhichMarket+'.xlsx', mode='a', engine='openpyxl')
+        res_path = 'res/results_'+WhichMarket+'.xlsx'
+        writer = pd.ExcelWriter(res_path, mode='a', engine='openpyxl', if_sheet_exists='replace')
         pd.DataFrame(pred).to_excel(writer, sheet_name=trail_name+'-pred')
         pd.DataFrame(real).to_excel(writer, sheet_name=trail_name+'-real')
-        writer.save()
         writer.close()
+
+    return
+
+
+def post_processing(WhichMarket):
+    res_path = 'res/results_'+WhichMarket+'.xlsx'
+    # store excel data into result dict
+    result = dict([ ('step'+str(i), {'real':None}) for i in range(10)])
+    wb = openpyxl.load_workbook(res_path)
+    for sheet in wb.worksheets:
+        if sheet.title == 'Sheet1':
+            continue
+        # read excel data into table
+        table = []
+        for row in sheet.rows:
+            row_list = []
+            for cell in row:
+                row_list.append(cell.value)
+            table.append(row_list)
+        table = np.array(table)
+        table = table[1:,1:]
+        # reorganize and store table into result dict
+        for i in range(10):
+            title_split = sheet.title.split('-')
+            if title_split[-1] == 'real':
+                title = 'real'
+            else:
+                title = '-'.join(list(sheet.title.split('-')[1:-1]))
+            result['step'+str(i)][title] = table[:,i]
+
+    # print(result.keys()) # dict_keys(['step0', 'step1', 'step2', 'step3', 'step4', 'step5', 'step6', 'step7', 'step8', 'step9'])
+    # print(result['step0'].keys()) # dict_keys(['real', 'ARIMA', 'SSA-SVR-ARIMA', 'SVR', 'SSA-ARIMA-SVR', 'CEEMDAN-SVR-ARIMA', 'VMD-SVR-ARIMA'])
+    
+    # reorganize result dict and calculate metrics
+    methods = ['SSA-SVR-ARIMA', 'CEEMDAN-SVR-ARIMA', 'VMD-SVR-ARIMA', 'SSA-ARIMA-SVR', 'ARIMA', 'SVR']
+    metrics = dict([ (m, []) for m in methods])
+    for m in methods:
+        for step in result.keys():
+            metrics[m].append(cal_rmse(result[step]['real'], result[step][m]))
+            metrics[m].append(cal_mape(result[step]['real'], result[step][m]))
+
+    # store metrics into excel
+    writer = pd.ExcelWriter('res/res_'+WhichMarket+'.xlsx', engine='openpyxl', mode='a', if_sheet_exists='replace')
+    pd.DataFrame(metrics).to_excel(writer, sheet_name='metrics')
+    for i in result.keys():
+        pd.DataFrame(result[i]).to_excel(writer, sheet_name=i)
+    writer.close()
 
     return
 
@@ -171,35 +227,21 @@ def CCpred_nowin(WhichMarket, SingleOrHybrid, RestrMethod, PredMethods, vis, sav
 
 if __name__ == '__main__':
 
-    # CCpred_nowin('EU', 'hb', 'vmd', ['arima','svr'], vis=False, save=True)
-    # CCpred_nowin('EU', 'hb', 'vmd', ['svr','arima'], vis=False, save=True)
-    # CCpred_nowin('EU', 'hb', 'vmd', ['arima','tcn'], vis=False, save=True)
-    # CCpred_nowin('EU', 'hb', 'vmd', ['tcn','arima'], vis=False, save=True)
-    # CCpred_nowin('EU', 'hb', 'vmd', ['svr','tcn'], vis=False, save=True)
-    # CCpred_nowin('EU', 'hb', 'vmd', ['tcn','svr'], vis=False, save=True)
-
-    CCpred_nowin('SZ', 'sg', '', ['arima'], vis=False, save=True)
-    CCpred_nowin('SZ', 'sg', '', ['svr'], vis=False, save=True)
-    CCpred_nowin('SZ', 'hb', 'ssa', ['svr', 'arima'], vis=False, save=True)
-    CCpred_nowin('SZ', 'hb', 'ssa', ['arima', 'svr'], vis=False, save=True)
-    CCpred_nowin('SZ', 'hb', 'ceemdan', ['svr', 'arima'], vis=False, save=True)
-    CCpred_nowin('SZ', 'hb', 'vmd', ['svr', 'arima'], vis=False, save=True)
+    WhichMarket = 'EU' # ['GZ', 'HB', 'SH', 'BJ', 'FJ', 'CQ', 'TJ', 'SZ']
+    CCpred_nowin(WhichMarket, 'ARIMA', vis=False, save=True)
+    CCpred_nowin(WhichMarket, 'SVR', vis=False, save=True)
+    CCpred_nowin(WhichMarket, 'SSA-SVR-ARIMA', vis=False, save=True)
+    CCpred_nowin(WhichMarket, 'SSA-ARIMA-SVR', vis=False, save=True)
+    CCpred_nowin(WhichMarket, 'CEEMDAN-SVR-ARIMA', vis=False, save=True)
+    CCpred_nowin(WhichMarket, 'VMD-SVR-ARIMA', vis=False, save=True)
+    post_processing(WhichMarket)
     
-    # TJ, SZ
-
-    # data = loaddata_eu()
-    # data = loaddata_chn('Hubei')
-
-    # pred_nowin_single('tcn', data, vis=True)
-    # pred_nowin_single('gru', data, vis=True)
-    # pred_nowin_single('lstm', data, vis=True)
-    # pred_nowin_single('mlp', data, vis=True)
-
-    # pred, real = pred_nowin_single(data, 'arima', vis=False)
-    # pred, real = pred_nowin_single(data, 'svr', vis=False, save=True)
-    # pred, real = pred_nowin_hybrid(data, 'ssa', 'arima', 'svr', vis=False)
-    # pred, real = pred_nowin_hybrid(data, 'ssa', 'svr', 'arima', vis=False)
-    # pred, real = pred_nowin_hybrid(data, 'ssa', 'arima', 'arima', vis=False)
+    # import timeit
+    # start = timeit.default_timer()
+    # CCpred_nowin('EU', 'sg', '', ['gru'], vis=False, save=False)
+    # end = timeit.default_timer()
+    # print('Time: ', end-start)
+    
 
     # pred_win_single_arima('arima', True)
     # pred_win_hybrid_arima('ssa', 'arima', 'tcn', True)

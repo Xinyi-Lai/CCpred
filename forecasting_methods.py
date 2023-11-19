@@ -119,7 +119,7 @@ def pred_svr(ml_x, ml_y, train_ratio=0.9, auto=False):
 ########## time series analysis models ##########
 
 
-def pred_arima(data, seq_len=100, pred_len=10, train_ratio=0.9, auto=True, order=(5,3,5)):
+def pred_arima(data, seq_len=100, pred_len=10, train_ratio=0.9, auto=False, order=(5,3,5)):
     ''' predict with ARIMA (AutoRegressive Integrated Moving Average)
         Args:
             data (np.array), shape (n_samples, 1+n_features): target at the first column, followed by other features 
