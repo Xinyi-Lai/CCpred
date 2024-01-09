@@ -14,3 +14,16 @@ blockquote {
     margin-bottom: 2rem;
     margin-left: 0rem;
 }
+
+#my-top-row {
+  position: sticky;
+  top: 0pt;
+  z-index: 100;
+}
+
+#my-tabs {
+  position: sticky;
+  top: 50pt;
+  z-index: 100;
+  background-color: white;
+}
