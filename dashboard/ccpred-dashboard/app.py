@@ -3,14 +3,14 @@ import dash_bootstrap_components as dbc
 
 app = dash.Dash(
     __name__,
-    external_stylesheets=[dbc.themes.SPACELAB, dbc.icons.FONT_AWESOME],
+    external_stylesheets=[dbc.themes.FLATLY, dbc.icons.FONT_AWESOME],
     use_pages=True,
 )
 
 app.layout = dbc.Container(
     [
         dbc.NavbarSimple(
-            children=[
+            [
                 dbc.NavItem(dbc.NavLink('Home', href='/')),
                 dbc.NavItem(dbc.NavLink('Correlation', href='correlation')),
                 dbc.NavItem(dbc.NavLink('Prediction', href='prediction')),
@@ -20,7 +20,7 @@ app.layout = dbc.Container(
             brand_href='/',
             color='primary',
             dark=True,
-            id='my-top-row',
+            sticky='top',
         ),
         dash.page_container,
     ],
