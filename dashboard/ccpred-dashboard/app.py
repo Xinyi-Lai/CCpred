@@ -12,11 +12,12 @@ app.layout = dbc.Container(
         dbc.NavbarSimple(
             [
                 dbc.NavItem(dbc.NavLink('Home', href='/')),
-                dbc.NavItem(dbc.NavLink('Correlation', href='correlation')),
-                dbc.NavItem(dbc.NavLink('Prediction', href='prediction')),
+                dbc.NavItem(dbc.NavLink("Correlation", href='correlation')),
+                dbc.NavItem(dbc.NavLink("Prediction", href='prediction')),
                 dbc.NavItem(dbc.NavLink('Ref', href='ref')),
             ],
             brand='Carbon Price Forecasting',
+            
             brand_href='/',
             color='primary',
             dark=True,

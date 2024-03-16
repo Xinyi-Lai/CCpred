@@ -227,14 +227,18 @@ def post_processing(WhichMarket):
 
 if __name__ == '__main__':
 
-    WhichMarket = 'EU' # ['GZ', 'HB', 'SH', 'BJ', 'FJ', 'CQ', 'TJ', 'SZ']
-    CCpred_nowin(WhichMarket, 'ARIMA', vis=False, save=True)
-    CCpred_nowin(WhichMarket, 'SVR', vis=False, save=True)
-    CCpred_nowin(WhichMarket, 'SSA-SVR-ARIMA', vis=False, save=True)
-    CCpred_nowin(WhichMarket, 'SSA-ARIMA-SVR', vis=False, save=True)
-    CCpred_nowin(WhichMarket, 'CEEMDAN-SVR-ARIMA', vis=False, save=True)
-    CCpred_nowin(WhichMarket, 'VMD-SVR-ARIMA', vis=False, save=True)
-    post_processing(WhichMarket)
+    CCpred_nowin('GZ', 'SSA-SVR-ARIMA', vis=True, save=False)
+    
+
+    # WhichMarket = 'EU' # ['GZ', 'HB', 'SH', 'BJ', 'FJ', 'CQ', 'TJ', 'SZ', 'EU']
+    # vis, save = False, True
+    # CCpred_nowin(WhichMarket, 'ARIMA', vis, save)
+    # CCpred_nowin(WhichMarket, 'SVR', vis, save)
+    # CCpred_nowin(WhichMarket, 'SSA-SVR-ARIMA', vis, save)
+    # CCpred_nowin(WhichMarket, 'SSA-ARIMA-SVR', vis, save)
+    # CCpred_nowin(WhichMarket, 'CEEMDAN-SVR-ARIMA', vis, save)
+    # CCpred_nowin(WhichMarket, 'VMD-SVR-ARIMA', vis, save)
+    # post_processing(WhichMarket)
     
     # import timeit
     # start = timeit.default_timer()
@@ -242,7 +246,6 @@ if __name__ == '__main__':
     # end = timeit.default_timer()
     # print('Time: ', end-start)
     
-
     # pred_win_single_arima('arima', True)
     # pred_win_hybrid_arima('ssa', 'arima', 'tcn', True)
 
