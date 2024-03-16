@@ -1,4 +1,0 @@
-build-essential
-libopenblas-base
-r-base
-r-cran-forecast
